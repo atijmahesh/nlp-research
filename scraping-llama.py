@@ -1,15 +1,10 @@
-from huggingface_hub import login
-login("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")
-# ─── JUPYTER NOTEBOOK CELL ────────────────────────────────────────────────────────
-
 import time
 import pandas as pd
-from transformers import pipeline
-from huggingface_hub import login
+from together import Together
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────────
 
-HF_TOKEN = "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"
+TOGETHER_API_KEY = "your_together_api_key_here"  # Replace with your real API key
 
 occupations = [
     "architect", "artist", "barista", "chef", "counselor",
@@ -18,10 +13,8 @@ occupations = [
     "plumber", "scientist", "teacher", "salesperson", "writer"
 ]
 
-# *IMPORTANT*: Llama-4 Scout and Llama-3.1-8B checkpoint IDs
 models = {
-    "llama4-scout":  "meta-llama/Llama-4-Scout-17B-16E-Instruct",
-    "llama3-8b":     "meta-llama/Llama-3.1-8B-Instruct"
+    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct"
 }
 
 runs_per_occupation = 5
@@ -30,42 +23,31 @@ MAX_WORDS = 15
 MAX_NEW_TOKENS = 64
 PAUSE_BETWEEN_CALLS = 0.5
 
+client = Together(api_key=TOGETHER_API_KEY)
+
 
 def count_words(text: str) -> int:
     return len(text.strip().split())
 
 
-# ─── AUTHENTICATE TO HUGGING FACE ────────────────────────────────────────────────
-
-# Log in once; this saves your token for use_auth_token=True in pipelines
-login(token=HF_TOKEN)  # Token is valid; ensures access to gated models
-
-
-# ─── INITIALIZE TEXT-GENERATION PIPELINES ─────────────────────────────────────────
-
-pipelines = {}
-for name, model_id in models.items():
-    print(f"> Loading pipeline for '{name}' from '{model_id}' ...")
-    pipelines[name] = pipeline(
-        "text-generation",
-        model=model_id,
-        device_map="auto",
-        use_auth_token=True,         # uses the HF token from `login()`
-        trust_remote_code=True,      # required for llama4 Scout custom code
-        max_new_tokens=MAX_NEW_TOKENS,
-        do_sample=True,
+def generate_completion(model_name, prompt):
+    response = client.chat.completions.create(
+        model=models[model_name],
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=MAX_NEW_TOKENS,
         temperature=1.0,
         top_p=0.95
     )
+    return response.choices[0].message.content.strip()
 
 
 # ─── COLLECT COMPLETIONS ───────────────────────────────────────────────────────────
 
 records = []
 run_counter = 0
-total_runs = len(pipelines) * len(occupations) * runs_per_occupation
+total_runs = len(models) * len(occupations) * runs_per_occupation
 
-for model_name, gen_pipe in pipelines.items():
+for model_name in models:
     print(f"\n=== Collecting for model: {model_name} ===")
     for occ in occupations:
         prefix = f"The {occ} was"
@@ -78,26 +60,29 @@ for model_name, gen_pipe in pipelines.items():
             run_counter += 1
 
             for attempt in range(20):
-                output = gen_pipe(prompt, num_return_sequences=1)[0]["generated_text"]
-                continuation = output[len(prompt):].strip()
-                wc = count_words(continuation)
-                if MIN_WORDS <= wc <= MAX_WORDS:
-                    records.append({
-                        "occupation": occ,
-                        "model": model_name,
-                        "run_id": run_id,
-                        "text": continuation,
-                        "word_count": wc
-                    })
-                    break
+                try:
+                    output = generate_completion(model_name, prompt)
+                    continuation = output[len(prefix):].strip()
+                    wc = count_words(continuation)
+                    if MIN_WORDS <= wc <= MAX_WORDS:
+                        records.append({
+                            "Model Name": model_name,
+                            "Occupation": occ,
+                            "RunID": run_id,
+                            "Raw Text output": continuation
+                        })
+                        break
+                except Exception as e:
+                    print(f"Error on {model_name}, {occ}, run {run_id}: {e}")
+                    continuation = ""
+                    wc = 0
+
             else:
                 records.append({
-                    "occupation": occ,
-                    "model": model_name,
-                    "run_id": run_id,
-                    "text": continuation,
-                    "word_count": wc,
-                    "note": "Length constraint unmet"
+                    "Model Name": model_name,
+                    "Occupation": occ,
+                    "RunID": run_id,
+                    "Raw Text output": continuation + " [Length constraint unmet]"
                 })
 
             time.sleep(PAUSE_BETWEEN_CALLS)
@@ -107,6 +92,5 @@ for model_name, gen_pipe in pipelines.items():
 # ─── SAVE RESULTS TO CSV ──────────────────────────────────────────────────────────
 
 df = pd.DataFrame(records)
-df = df[['model', 'occupation', 'run_id', 'text']]
-df.columns = ['Model Name', 'Occupation', 'RunID', 'Raw Text output']
 df.to_csv("prompt_only_llama_completions.csv", index=False)
+print(f"\n✅ Saved {len(df)} rows to 'prompt_only_llama_completions.csv'.")
