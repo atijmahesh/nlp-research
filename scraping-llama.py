@@ -107,5 +107,6 @@ for model_name, gen_pipe in pipelines.items():
 # ─── SAVE RESULTS TO CSV ──────────────────────────────────────────────────────────
 
 df = pd.DataFrame(records)
+df = df[['model', 'occupation', 'run_id', 'text']]
+df.columns = ['Model Name', 'Occupation', 'RunID', 'Raw Text output']
 df.to_csv("prompt_only_llama_completions.csv", index=False)
-print(f"\n✅ Saved {len(df)} rows to 'prompt_only_llama_completions.csv'.")
