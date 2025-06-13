@@ -1,10 +1,13 @@
 import time
 import pandas as pd
 from together import Together
+from dotenv import load_dotenv
+import os
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────────
 
-TOGETHER_API_KEY = "your_together_api_key_here"  # Replace with your real API key
+load_dotenv()  # Load environment variables from .env file
+TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY')
 
 occupations = [
     "architect", "artist", "barista", "chef", "counselor",
