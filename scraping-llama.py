@@ -6,8 +6,13 @@ import os
 
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────────
 
-load_dotenv()  # Load environment variables from .env file
-TOGETHER_API_KEY = os.getenv('TOGETHER_API_KEY')
+from pathlib import Path
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+TOGETHER_API_KEY = os.getenv('API-KEY')
+print(f"API Key loaded: {TOGETHER_API_KEY}")
 
 occupations = [
     "architect", "artist", "barista", "chef", "counselor",
