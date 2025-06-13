@@ -22,7 +22,7 @@ occupations = [
 ]
 
 models = {
-    "llama3-70b": "meta-llama/Llama-3-70B-Instruct"
+    "llama3-70b": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
 }
 
 runs_per_occupation = 5
