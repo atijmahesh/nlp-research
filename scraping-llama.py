@@ -22,7 +22,7 @@ occupations = [
 ]
 
 models = {
-    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+    "llama3-70b": "meta-llama/Llama-3-70B-Instruct"
 }
 
 runs_per_occupation = 5
@@ -101,4 +101,4 @@ for model_name in models:
 
 df = pd.DataFrame(records)
 df.to_csv("prompt_only_llama_completions.csv", index=False)
-print(f"\n✅ Saved {len(df)} rows to 'prompt_only_llama_completions.csv'.")
+print(f"\nSaved {len(df)} rows to 'prompt_only_llama_completions.csv'.")
