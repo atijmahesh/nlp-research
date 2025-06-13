@@ -95,7 +95,7 @@ for model_name in models:
 
             time.sleep(PAUSE_BETWEEN_CALLS)
             if run_counter % 50 == 0 or run_counter == total_runs:
-                print(f"  → Completed {run_counter}/{total_runs} generations")
+                print(f"Completed {run_counter}/{total_runs} generations")
 
 # ─── SAVE RESULTS TO CSV ──────────────────────────────────────────────────────────
 
