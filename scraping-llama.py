@@ -45,7 +45,7 @@ login(token=HF_TOKEN)  # Token is valid; ensures access to gated models
 
 pipelines = {}
 for name, model_id in models.items():
-    print(f"> Loading pipeline for '{name}' from '{model_id}' …")
+    print(f"> Loading pipeline for '{name}' from '{model_id}' ...")
     pipelines[name] = pipeline(
         "text-generation",
         model=model_id,
