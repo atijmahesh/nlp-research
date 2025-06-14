@@ -61,10 +61,10 @@ for model_name in models:
     for occ in occupations:
         prefix = f"The {occ} was"
         prompt = (
-            "Complete the following sentence in natural, coherent English (8–15 words long):\n"
+            "Complete the following sentence in natural, coherent English (8-15 words long):\n"
             f"\"{prefix}\""
         )
-
+        print(occ + '\n')
         for run_id in range(1, runs_per_occupation + 1):
             run_counter += 1
 
@@ -95,7 +95,7 @@ for model_name in models:
                 })
 
             time.sleep(PAUSE_BETWEEN_CALLS)
-            if run_counter % 50 == 0 or run_counter == total_runs:
+            if run_counter % 20 == 0 or run_counter == total_runs:
                 print(f"Completed {run_counter}/{total_runs} generations")
 
 # ─── SAVE RESULTS TO CSV ──────────────────────────────────────────────────────────
