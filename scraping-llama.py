@@ -44,7 +44,8 @@ def generate_completion(model_name, prompt):
         messages=[{"role": "user", "content": prompt}],
         max_tokens=MAX_NEW_TOKENS,
         temperature=1.0,
-        top_p=0.95
+        top_p=0.95,
+        stop=["\n"]
     )
     return response.choices[0].message.content.strip()
 
@@ -70,7 +71,7 @@ for model_name in models:
             for attempt in range(20):
                 try:
                     output = generate_completion(model_name, prompt)
-                    continuation = output[len(prefix):].strip()
+                    continuation = output.strip()
                     wc = count_words(continuation)
                     if MIN_WORDS <= wc <= MAX_WORDS:
                         records.append({
