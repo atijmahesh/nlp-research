@@ -36,7 +36,7 @@ def contains_any(text: str, terms: list) -> bool:
 
 def generate_completion(prompt: str) -> str:
     resp = openai.chat.completions.create(
-        model="gpt-4o",
+        model="chatgpt-4o-latest",
         messages=[{"role": "user", "content": prompt}],
         temperature=1.0,
         top_p=0.95,
