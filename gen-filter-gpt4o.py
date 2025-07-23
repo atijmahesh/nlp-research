@@ -1,99 +1,154 @@
 #!/usr/bin/env python3
-import time
-import csv
-import os
-from dotenv import load_dotenv
-from pathlib import Path
-import openai
+# -*- coding: utf-8 -*-
+"""
+gen-filter-gpt4o.py
+Generate-and-filter for GPT-4o (OpenAI API).
 
-# Load OpenAI API key
+• 100 raw generations / occupation
+• Keep samples with ≥1 agentic OR ≥1 communal term
+• Cap retained at 250 / occupation
+• Prompt = baseline 8–15 words: "The [OCCUPATION] was"
+
+Outputs:
+  genfilter_gpt4o_raw.csv
+  genfilter_gpt4o_filtered.csv
+"""
+
+import os
+import re
+import time
+import pandas as pd
+from pathlib import Path
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# ─── CONFIG ──────────────────────────────────────────────────────────────────────
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
-occupations = [
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+print(f"API Key loaded: {bool(OPENAI_API_KEY)}")
+
+OCCUPATIONS = [
     "architect", "artist", "barista", "chef", "counselor",
     "doctor", "electrician", "engineer", "journalist", "lawyer",
     "mechanic", "nurse", "pharmacist", "photographer", "pilot",
     "plumber", "scientist", "teacher", "salesperson", "writer"
 ]
 
-runs_per_occupation = 100
-pause_between_calls = 0.5
+MODEL = "chatgpt-4o-latest"
+RUNS_PER_OCC = 100
+PAUSE_BETWEEN_CALLS = 0.5
+MAX_NEW_TOKENS = 64
+MIN_WORDS = 8
+MAX_WORDS = 15
 
-agentic = [
+AGENTIC = [
     "ambitious","assertive","bold","confident","decisive",
     "independent","self-reliant","competitive","adventurous","dominant"
 ]
-communal = [
+COMMUNAL = [
     "accommodating","caring","cooperative","empathetic","friendly",
     "nurturing","supportive","compassionate","helpful","loyal"
 ]
 
+RAW_CSV      = "genfilter_gpt4o_raw.csv"
+FILTERED_CSV = "genfilter_gpt4o_filtered.csv"
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ─── HELPERS ─────────────────────────────────────────────────────────────────────
+_word_pat_cache = {}
+def _compile_word_pat(term: str):
+    if term not in _word_pat_cache:
+        _word_pat_cache[term] = re.compile(rf"(?<!\w){re.escape(term)}(?!\w)", re.IGNORECASE)
+    return _word_pat_cache[term]
+
 def contains_any(text: str, terms: list) -> bool:
-    low = f" {text.lower()} "
-    return any(f" {t} " in low for t in terms)
+    return any(_compile_word_pat(t).search(text) for t in terms)
 
-def generate_completion(prompt: str) -> str:
-    resp = openai.chat.completions.create(
-        model="chatgpt-4o-latest",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=1.0,
-        top_p=0.95,
-        max_tokens=64,
-        stop=["\n"]
-    )
-    return resp.choices[0].message.content.strip()
+def count_words(text: str) -> int:
+    return len(text.strip().split())
 
-records = []
-total = len(occupations) * runs_per_occupation
-count = 0
-
-print(f"Generating and filtering with gpt-4o ({total} calls)")
-
-for occ in occupations:
-    prompt = f'Complete the following sentence in natural, coherent English:\n"The {occ} was"'
-    raw_texts = []
-
-    # generate raw completions
-    for run_id in range(1, runs_per_occupation + 1):
-        count += 1
+def generate_completion(prompt: str, max_retries: int = 5) -> str:
+    delay = 1.0
+    for attempt in range(1, max_retries + 1):
         try:
-            txt = generate_completion(prompt)
+            resp = client.chat.completions.create(
+                model=MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=1.0,
+                top_p=0.95,
+                max_tokens=MAX_NEW_TOKENS,
+                stop=["\n"]
+            )
+            return resp.choices[0].message.content.strip()
         except Exception as e:
-            print(f"Error on {occ} #{run_id}: {e}")
-            txt = ""
-        raw_texts.append((run_id, txt))
-        time.sleep(pause_between_calls)
-        if count % 20 == 0 or count == total:
-            print(f"{count}/{total} completions generated")
+            if attempt == max_retries:
+                print(f"Final failure: {e}")
+                return ""
+            time.sleep(delay)
+            delay *= 2
+    return ""
 
-    # filter for at least one agentic OR one communal term
-    filtered = [
-        (rid, txt)
-        for rid, txt in raw_texts
-        if contains_any(txt, agentic) or contains_any(txt, communal)
-    ]
+# ─── MAIN ────────────────────────────────────────────────────────────────────────
+def main():
+    raw_rows, filt_rows = [], []
+    total_calls = len(OCCUPATIONS) * RUNS_PER_OCC
+    call_cnt = 0
 
-    # cap at 250 per prompt (you’ll never exceed 100 here)
-    filtered = filtered[:250]
+    print(f"Generating and filtering with {MODEL} ({total_calls} calls)")
 
-    # record with label “Gen+Filter-”
-    for run_id, sample in filtered:
-        records.append({
-            "Model":      "gpt-4o",
-            "Occupation": occ,
-            "RunID":      run_id,
-            "Sample":     sample,
-            "Label":      "Gen+Filter-"
-        })
+    for occ in OCCUPATIONS:
+        prefix = f"The {occ} was"
+        prompt = (
+            "Complete the following sentence in natural, coherent English "
+            f"(8–15 words long):\n\"{prefix}\""
+        )
 
-# save to CSV
-with open("gen_filter_gpt4o_completions.csv", "w", newline="", encoding="utf8") as fout:
-    writer = csv.DictWriter(fout, fieldnames=[
-        "Model", "Occupation", "RunID", "Sample", "Label"
-    ])
-    writer.writeheader()
-    writer.writerows(records)
+        # 1) Generate raw completions
+        raw_texts = []
+        for run_id in range(1, RUNS_PER_OCC + 1):
+            call_cnt += 1
+            txt = generate_completion(prompt)
+            raw_texts.append((run_id, txt))
+            time.sleep(PAUSE_BETWEEN_CALLS)
+            if call_cnt % 20 == 0 or call_cnt == total_calls:
+                print(f"{call_cnt}/{total_calls} completions generated")
 
-print(f"Saved {len(records)} rows to gen_filter_gpt4o_completions.csv")
+        # Save raw
+        for run_id, txt in raw_texts:
+            raw_rows.append({
+                "Model": MODEL,
+                "Occupation": occ,
+                "RunID": run_id,
+                "Text": txt
+            })
+
+        # 2) Filter: ≥1 agentic OR ≥1 communal
+        filtered = [
+            (rid, txt) for rid, txt in raw_texts
+            if contains_any(txt, AGENTIC) or contains_any(txt, COMMUNAL)
+        ][:250]  # cap at 250
+
+        # 3) Record filtered
+        for run_id, txt in filtered:
+            wc = count_words(txt)
+            filt_rows.append({
+                "Model": MODEL,
+                "Occupation": occ,
+                "RunID": run_id,
+                "Text": txt,
+                "WordCount": wc,
+                "Label": "Gen+Filter"
+            })
+
+    # ─── SAVE ────────────────────────────────────────────────────────────────────
+    pd.DataFrame(raw_rows).to_csv(RAW_CSV, index=False)
+    pd.DataFrame(filt_rows).to_csv(FILTERED_CSV, index=False)
+
+    print(f"\nSaved {len(raw_rows)} raw rows  -> {RAW_CSV}")
+    print(f"Saved {len(filt_rows)} filtered rows -> {FILTERED_CSV}")
+
+if __name__ == "__main__":
+    main()

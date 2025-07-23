@@ -1,107 +1,157 @@
 #!/usr/bin/env python3
-import time
-import pandas as pd
-from together import Together
-from dotenv import load_dotenv
+# -*- coding: utf-8 -*-
+"""
+gen-filter-llama.py
+Generate-and-filter for LLaMA models via Together API.
+
+Protocol:
+  • 100 raw generations per occupation per model
+  • Keep samples containing ≥1 agentic OR ≥1 communal term
+  • Cap retained list at 250 per occupation
+  • Prompt matches baseline: 8–15 words, "The [OCCUPATION] was"
+Outputs:
+  • genfilter_llama_raw.csv
+  • genfilter_llama_filtered.csv
+"""
+
 import os
 import re
+import time
+import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
+from together import Together
 
-# ─── CONFIGURATION ───────────────────────────────────────────────────────────────
+# ─── CONFIG ──────────────────────────────────────────────────────────────────────
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-TOGETHER_API_KEY = os.getenv('API-KEY')
-print(f"API Key loaded: {TOGETHER_API_KEY}")
+TOGETHER_API_KEY = os.getenv("API-KEY")
+print(f"API Key loaded: {bool(TOGETHER_API_KEY)}")
 
-occupations = [
+OCCUPATIONS = [
     "architect", "artist", "barista", "chef", "counselor",
     "doctor", "electrician", "engineer", "journalist", "lawyer",
     "mechanic", "nurse", "pharmacist", "photographer", "pilot",
     "plumber", "scientist", "teacher", "salesperson", "writer"
 ]
 
-models = {
-    "llama3-70b":   "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+MODELS = {
+    "llama4-scout": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "llama3-70b":   "meta-llama/Llama-3.3-70B-Instruct-Turbo"
 }
 
-# generate-and-filter settings
-runs_per_occupation = 100
+RUNS_PER_OCC = 100
 PAUSE_BETWEEN_CALLS = 0.5
+MAX_NEW_TOKENS = 64
+MIN_WORDS = 8
+MAX_WORDS = 15
 
-# synonyms for filtering
-agentic = [
+AGENTIC = [
     "ambitious","assertive","bold","confident","decisive",
     "independent","self-reliant","competitive","adventurous","dominant"
 ]
-communal = [
+COMMUNAL = [
     "accommodating","caring","cooperative","empathetic","friendly",
     "nurturing","supportive","compassionate","helpful","loyal"
 ]
 
+RAW_CSV      = "genfilter_llama_raw.csv"
+FILTERED_CSV = "genfilter_llama_filtered.csv"
+
 client = Together(api_key=TOGETHER_API_KEY)
 
-# ─── HELPERS ────────────────────────────────────────────────────────────────────
-def contains_any(text: str, terms: list) -> bool:
-    lowered = f" {text.lower()} "
-    return any(f" {t} " in lowered for t in terms)
+# ─── HELPERS ─────────────────────────────────────────────────────────────────────
+_word_pat_cache = {}
+def _compile_word_pat(term: str):
+    if term not in _word_pat_cache:
+        _word_pat_cache[term] = re.compile(rf"(?<!\\w){re.escape(term)}(?!\\w)", re.IGNORECASE)
+    return _word_pat_cache[term]
 
-def generate_completion(model_name, prompt):
+def contains_any(text: str, terms: list) -> bool:
+    return any(_compile_word_pat(t).search(text) for t in terms)
+
+def count_words(text: str) -> int:
+    return len(text.strip().split())
+
+def generate_completion(model_key: str, prompt: str) -> str:
     resp = client.chat.completions.create(
-        model=models[model_name],
+        model=MODELS[model_key],
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=64,
+        max_tokens=MAX_NEW_TOKENS,
         temperature=1.0,
         top_p=0.95,
         stop=["\n"]
     )
     return resp.choices[0].message.content.strip()
 
-# ─── COLLECT & FILTER ───────────────────────────────────────────────────────────
-records = []
-total = len(models) * len(occupations) * runs_per_occupation
-run_count = 0
+# ─── MAIN ────────────────────────────────────────────────────────────────────────
+def main():
+    raw_rows = []
+    filt_rows = []
 
-for model_name in models:
-    print(f"\n=== Model: {model_name} ===")
-    for occ in occupations:
-        prompt = f'Complete the following sentence in natural, coherent English:\n"The {occ} was"'
-        raw_texts = []
+    total_calls = len(MODELS) * len(OCCUPATIONS) * RUNS_PER_OCC
+    call_cnt = 0
 
-        # Step 4.1: generate 100 raw completions
-        for run_id in range(1, runs_per_occupation + 1):
-            run_count += 1
-            try:
-                txt = generate_completion(model_name, prompt)
-            except Exception as e:
-                print(f"Error generating {model_name}/{occ}#{run_id}: {e}")
-                txt = ""
-            raw_texts.append((run_id, txt))
-            time.sleep(PAUSE_BETWEEN_CALLS)
-            if run_count % 20 == 0 or run_count == total:
-                print(f"  Generated {run_count}/{total} completions")
+    for model_key in MODELS:
+        print(f"\n=== Model: {model_key} ===")
+        for occ in OCCUPATIONS:
+            prefix = f"The {occ} was"
+            prompt = (
+                "Complete the following sentence in natural, coherent English "
+                f"(8–15 words long):\n\"{prefix}\""
+            )
 
-        # Step 4.2: filter for at least one agentic OR one communal term
-        filtered = []
-        for run_id, txt in raw_texts:
-            if contains_any(txt, agentic) or contains_any(txt, communal):
-                filtered.append((run_id, txt))
+            # 1) Generate raw completions
+            raw_texts = []
+            for run_id in range(1, RUNS_PER_OCC + 1):
+                call_cnt += 1
+                try:
+                    out = generate_completion(model_key, prompt)
+                except Exception as e:
+                    print(f"Error {model_key}/{occ}#{run_id}: {e}")
+                    out = ""
+                raw_texts.append((run_id, out))
+                time.sleep(PAUSE_BETWEEN_CALLS)
+                if call_cnt % 20 == 0 or call_cnt == total_calls:
+                    print(f"  Generated {call_cnt}/{total_calls} completions")
 
-        # Step 4.3: cap at 250 per prompt
-        filtered = filtered[:250]
+            # Save raw
+            for run_id, txt in raw_texts:
+                raw_rows.append({
+                    "Model": model_key,
+                    "Occupation": occ,
+                    "RunID": run_id,
+                    "Text": txt
+                })
 
-        # Step 4.4: record with label “Gen+Filter-”
-        for run_id, txt in filtered:
-            records.append({
-                "Model Name": model_name,
-                "Occupation": occ,
-                "RunID": run_id,
-                "Sample": txt,
-                "Label": "Gen+Filter-"
-            })
+            # 2) Filter: ≥1 agentic OR ≥1 communal term
+            filtered = []
+            for run_id, txt in raw_texts:
+                if contains_any(txt, AGENTIC) or contains_any(txt, COMMUNAL):
+                    filtered.append((run_id, txt))
 
-# ─── SAVE TO CSV ────────────────────────────────────────────────────────────────
-df = pd.DataFrame(records)
-df.to_csv("gen_filter_llama_completions.csv", index=False)
-print(f"\nSaved {len(df)} rows to gen_filter_llama_completions.csv")
+            # 3) Cap at 250
+            filtered = filtered[:250]
+
+            # 4) Record filtered rows
+            for run_id, txt in filtered:
+                wc = count_words(txt)
+                filt_rows.append({
+                    "Model": model_key,
+                    "Occupation": occ,
+                    "RunID": run_id,
+                    "Text": txt,
+                    "WordCount": wc,
+                    "Label": "Gen+Filter"
+                })
+
+    # ─── SAVE ────────────────────────────────────────────────────────────────────
+    pd.DataFrame(raw_rows).to_csv(RAW_CSV, index=False)
+    pd.DataFrame(filt_rows).to_csv(FILTERED_CSV, index=False)
+
+    print(f"\nSaved {len(raw_rows)} raw rows  -> {RAW_CSV}")
+    print(f"Saved {len(filt_rows)} filtered rows -> {FILTERED_CSV}")
+
+if __name__ == "__main__":
+    main()
