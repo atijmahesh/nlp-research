@@ -183,13 +183,13 @@ def setup_model_and_tokenizer(use_8bit: bool = False):
             MODEL_NAME,
             quantization_config=quantization_config,
             device_map="auto",
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     else:
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_NAME,
             device_map="auto",
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     
     # Wrap with value head for PPO
@@ -202,13 +202,13 @@ def setup_model_and_tokenizer(use_8bit: bool = False):
             MODEL_NAME,
             quantization_config=quantization_config,
             device_map="auto",
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     else:
         ref_model = AutoModelForCausalLM.from_pretrained(
             MODEL_NAME,
             device_map="auto",
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
         )
     
     return model, ref_model, tokenizer
@@ -223,13 +223,11 @@ def main():
     # Setup model and tokenizer
     model, ref_model, tokenizer = setup_model_and_tokenizer(use_8bit=False)
     
-    # PPO configuration
+    # PPO configuration (minimal for trl 0.23.1 compatibility)
     ppo_config = PPOConfig(
         learning_rate=LEARNING_RATE,
         batch_size=BATCH_SIZE,
         mini_batch_size=MINI_BATCH_SIZE,
-        target_kl=TARGET_KL,
-        seed=42,
     )
     
     # Create dataset
