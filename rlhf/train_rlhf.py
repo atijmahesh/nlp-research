@@ -228,13 +228,8 @@ def main():
         learning_rate=LEARNING_RATE,
         batch_size=BATCH_SIZE,
         mini_batch_size=MINI_BATCH_SIZE,
-        ppo_epochs=PPO_EPOCHS,
         target_kl=TARGET_KL,
-        gradient_accumulation_steps=1,
-        optimize_cuda_cache=True,
         seed=42,
-        log_with="tensorboard",
-        project_kwargs={"project_name": "rlhf-occupation-bias"},
     )
     
     # Create dataset
