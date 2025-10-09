@@ -33,7 +33,7 @@ from datasets import Dataset
 # ─── CONFIGURATION ───────────────────────────────────────────────────────────
 load_dotenv()
 
-MODEL_NAME = "meta-llama/Llama-3.1-7B-Instruct"  # or "meta-llama/Llama-3-7B-Instruct"
+MODEL_NAME = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 OUTPUT_DIR = "./rlhf_llama3_7b_output"
 CHECKPOINT_DIR = "./rlhf_checkpoints"
 
