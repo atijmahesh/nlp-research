@@ -225,7 +225,6 @@ def main():
     
     # PPO configuration
     ppo_config = PPOConfig(
-        model_name=MODEL_NAME,
         learning_rate=LEARNING_RATE,
         batch_size=BATCH_SIZE,
         mini_batch_size=MINI_BATCH_SIZE,
@@ -235,7 +234,7 @@ def main():
         optimize_cuda_cache=True,
         seed=42,
         log_with="tensorboard",
-        tracker_project_name="rlhf-occupation-bias",
+        project_kwargs={"project_name": "rlhf-occupation-bias"},
     )
     
     # Create dataset
