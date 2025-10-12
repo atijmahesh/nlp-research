@@ -16,7 +16,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
 )
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model
 from datasets import Dataset
 from trl import DPOTrainer
 import random
@@ -209,7 +209,6 @@ def main(args):
         task_type="CAUSAL_LM",
     )
     
-    model = prepare_model_for_kbit_training(model)
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     
@@ -217,9 +216,9 @@ def main(args):
     training_args = TrainingArguments(
         output_dir=str(output_dir),
         num_train_epochs=3,
-        per_device_train_batch_size=2,
-        per_device_eval_batch_size=2,
-        gradient_accumulation_steps=8,
+        per_device_train_batch_size=1,  # Reduced from 2 due to dual-model memory
+        per_device_eval_batch_size=1,   # Reduced from 2
+        gradient_accumulation_steps=16,  # Increased to maintain effective batch size
         learning_rate=5e-5,
         bf16=True,
         logging_steps=10,
@@ -231,6 +230,7 @@ def main(args):
         seed=args.seed,
         report_to="none",
         remove_unused_columns=False,
+        gradient_checkpointing=True,  # Enable to save memory
     )
     
     # DPO Trainer
