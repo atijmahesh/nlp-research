@@ -61,7 +61,7 @@ def is_balanced(text: str) -> bool:
 def build_prompt(occupation: str) -> str:
     return f"Complete the following sentence in natural, coherent English (8–15 words long):\n\"The {occupation} was\""
 
-def generate_completion(model, tokenizer, prompt: str, max_retries: int = 20) -> str:
+def generate_completion(model, tokenizer, prompt: str, max_retries: int = 5) -> str:
     device = model.device
     
     for attempt in range(max_retries):
@@ -86,6 +86,7 @@ def generate_completion(model, tokenizer, prompt: str, max_retries: int = 20) ->
         if MIN_WORDS <= word_count <= MAX_WORDS:
             return generated_text
     
+    # Return last attempt even if not perfect length
     return generated_text if generated_text else "[Generation failed]"
 
 def main(args):
@@ -136,7 +137,7 @@ def main(args):
     
     for occ in ALL_OCCUPATIONS:
         split = "train" if occ in TRAIN_OCCUPATIONS else "validation"
-        print(f"Processing {occ} ({split})...", flush=True)
+        print(f"\nProcessing {occ} ({split})... [0/{RUNS_PER_OCC}]", flush=True)
         prompt = build_prompt(occ)
         
         for run_id in range(1, RUNS_PER_OCC + 1):
@@ -162,8 +163,10 @@ def main(args):
                     "Label": "SFT-LoRA"
                 })
                 
+                if run_id % 50 == 0:
+                    print(f"  [{occ}] {run_id}/{RUNS_PER_OCC} completions", flush=True)
                 if run_counter % 100 == 0:
-                    print(f"  Progress: {run_counter}/{total_runs}", flush=True)
+                    print(f"  Overall: {run_counter}/{total_runs}", flush=True)
                     
             except Exception as e:
                 print(f"  Error: {e}", flush=True)
