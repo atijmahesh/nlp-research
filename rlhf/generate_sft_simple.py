@@ -84,7 +84,7 @@ def generate_completion(model, tokenizer, prompt: str) -> str:
     return generated_text if generated_text else "[Generation failed]"
 
 def main(args):
-    model_path = f"{args.model_dir}_seed{args.seed}"
+    model_path = args.model_dir  # Use path exactly as provided
     output_csv = f"sft_lora_completions_seed{args.seed}.csv"
     
     if not Path(model_path).exists():
@@ -138,11 +138,14 @@ def main(args):
             run_counter += 1
             
             try:
+                print(f"  Generating {occ} #{run_id}...", flush=True)
                 completion = generate_completion(model, tokenizer, prompt)
                 word_count = count_words(completion)
                 n_agentic = count_terms(completion, AGENTIC_TERMS)
                 n_communal = count_terms(completion, COMMUNAL_TERMS)
                 balanced = is_balanced(completion)
+                
+                print(f"  ✓ {occ} #{run_id}: {word_count}w, balanced={balanced}", flush=True)
                 
                 records.append({
                     "Model": f"SFT-LoRA-Seed{args.seed}",
@@ -158,9 +161,9 @@ def main(args):
                 })
                 
                 if run_id % 50 == 0:
-                    print(f"  [{occ}] {run_id}/{RUNS_PER_OCC} completions", flush=True)
+                    print(f"  [{occ}] {run_id}/{RUNS_PER_OCC} completions done", flush=True)
                 if run_counter % 100 == 0:
-                    print(f"  Overall: {run_counter}/{total_runs}", flush=True)
+                    print(f"  ===> Overall progress: {run_counter}/{total_runs} <===", flush=True)
                     
             except Exception as e:
                 print(f"  Error: {e}", flush=True)
