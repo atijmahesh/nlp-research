@@ -14,10 +14,15 @@ nlp-research/
 │   ├── gen-filter-gpt4o.py
 │   └── gen-filter-llama.py
 │
-├── rlhf/                 # SFT Fine-tuning with LoRA
+├── sft/                  # Supervised Fine-Tuning with LoRA
 │   ├── train_sft_lora.py          # Training script (~3h on A6000)
 │   ├── generate_sft_simple.py     # Generate 250 completions per occupation
 │   └── SFT_ROBUST_README.md       # Detailed SFT methodology
+│
+├── dpo/                  # Direct Preference Optimization with LoRA
+│   ├── train_dpo_lora.py          # Training script (~3-4h on A6000)
+│   ├── generate_dpo.py            # Generate 250 completions per occupation
+│   └── DPO_README.md              # Detailed DPO methodology
 │
 ├── listModels.py         # Utility: List available OpenAI models
 └── README.md             # This file
@@ -25,12 +30,13 @@ nlp-research/
 
 ## Research Overview
 
-This study evaluates **four control strategies** to mitigate gender bias in LLMs:
+This study evaluates **five control strategies** to mitigate gender bias in LLMs:
 
 1. **Prompt-Only** ✅ - Simple prompting with length constraints
 2. **Generate-and-Filter** ✅ - Post-hoc filtering for stereotypical terms
 3. **Ctrl-G Decoding** ✅ - DFA-based constrained generation (separate implementation)
 4. **SFT Fine-tuning** ✅ - Supervised learning with LoRA to encourage balanced outputs
+5. **DPO Fine-tuning** 🔄 - Preference learning with LoRA (chosen vs rejected outputs)
 
 ### Key Metrics
 - **Constraint Compliance**: % samples with both agentic AND communal terms
@@ -84,7 +90,7 @@ python gen-filter-gpt4o.py  # or gen-filter-llama.py
 **SFT Training (Remote GPU Server Required):**
 ```bash
 # On remote server with A6000/A100
-cd rlhf/
+cd sft/
 
 # Train for one seed
 CUDA_VISIBLE_DEVICES=0 python train_sft_lora.py \
@@ -95,6 +101,22 @@ CUDA_VISIBLE_DEVICES=0 python train_sft_lora.py \
 CUDA_VISIBLE_DEVICES=0 python generate_sft_simple.py \
     --seed 42 \
     --model_dir ./sft_lora_paper_seed42_seed42
+```
+
+**DPO Training (Remote GPU Server Required):**
+```bash
+# On remote server with A6000/A100
+cd dpo/
+
+# Train for one seed
+CUDA_VISIBLE_DEVICES=0 python train_dpo_lora.py \
+    --seed 42 \
+    --output_dir ./dpo_lora_paper_seed42
+
+# Generate completions
+CUDA_VISIBLE_DEVICES=0 python generate_dpo.py \
+    --seed 42 \
+    --model_dir ./dpo_lora_paper_seed42
 ```
 
 ## Model Roster
@@ -112,6 +134,14 @@ CUDA_VISIBLE_DEVICES=0 python generate_sft_simple.py \
 - **Training Time**: ~3 hours per seed
 - **Seeds**: 42, 123, 456 (for reproducibility)
 
+### DPO Fine-tuning
+- **Base Model**: `meta-llama/Meta-Llama-3.1-8B-Instruct`
+- **Method**: Direct Preference Optimization with LoRA (rank-8, alpha-16)
+- **Training Data**: 750 preference pairs (chosen=balanced, rejected=unbalanced)
+- **Hardware**: RTX A6000 (48GB) or A100 40GB/80GB
+- **Training Time**: ~3-4 hours per seed
+- **Seeds**: 42, 123, 456 (for reproducibility)
+
 ### Ctrl-G Decoding
 - Implemented separately with DFA constraints
 - GPT-2 Ctrl-G, LLaMA 4.0+HMM, LLaMA 3.1-8B+HMM
@@ -124,6 +154,8 @@ CUDA_VISIBLE_DEVICES=0 python generate_sft_simple.py \
 | Gen-Filter | ❌ No | - | ~2 hours |
 | SFT Training | ✅ Yes | ~10-15GB | ~3 hours |
 | SFT Generation | ✅ Yes | ~10-15GB | ~3 hours |
+| DPO Training | ✅ Yes | ~12-18GB | ~3-4 hours |
+| DPO Generation | ✅ Yes | ~10-15GB | ~3 hours |
 
 ## SFT Performance
 
@@ -145,8 +177,12 @@ This demonstrates that lightweight supervised fine-tuning successfully teaches t
 - `genfilter_llama_raw.csv` + `genfilter_llama_filtered.csv`
 
 ### SFT
-- `rlhf/sft_lora_paper_seed{42,123,456}_seed{42,123,456}/` (trained models)
-- `rlhf/sft_lora_completions_seed{42,123,456}.csv` (generated samples)
+- `sft/sft_lora_paper_seed{42,123,456}_seed{42,123,456}/` (trained models)
+- `sft/sft_lora_completions_seed{42,123,456}.csv` (generated samples)
+
+### DPO
+- `dpo/dpo_lora_paper_seed{42,123,456}/` (trained models)
+- `dpo/dpo_lora_completions_seed{42,123,456}.csv` (generated samples)
 
 ## Key Findings
 
@@ -161,6 +197,7 @@ This demonstrates that lightweight supervised fine-tuning successfully teaches t
 - Dathathri, S., et al. (2020). Plug and Play Language Models. ICLR.
 - Gaucher, D., et al. (2011). Evidence That Gendered Wording in Job Advertisements Exists. JPSP.
 - Hu, E., et al. (2021). LoRA: Low-Rank Adaptation of Large Language Models. ICLR.
+- Rafailov, R., et al. (2023). Direct Preference Optimization: Your Language Model is Secretly a Reward Model. arXiv:2305.18290.
 - Ravfogel, S., et al. (2022). Null It Out: Guarding Protected Attributes. EMNLP.
 - Rudinger, R., et al. (2018). Gender Bias in Coreference Resolution: Winogender Schemas.
 
@@ -170,12 +207,15 @@ This demonstrates that lightweight supervised fine-tuning successfully teaches t
 2. ✅ Run generate-and-filter
 3. ✅ Implement Ctrl-G decoding (separate)
 4. ✅ Train SFT models (seeds 42, 123, 456)
-5. 🔄 Generate completions for all 3 seeds (in progress)
-6. ⏳ Implement DPO (Direct Preference Optimization)
-7. ⏳ Implement INLP (linear projection debiasing)
-8. ⏳ Run evaluation metrics across all methods
-9. ⏳ Statistical analysis and visualization
-10. ⏳ Write manuscript
+5. 🔄 Generate SFT completions for seeds 123, 456 (in progress)
+6. ✅ Implement DPO training and generation scripts
+7. ⏳ Train DPO models (seeds 42, 123, 456)
+8. ⏳ Generate DPO completions for all 3 seeds
+9. ⏳ Implement INLP (linear projection debiasing)
+10. ⏳ Run evaluation metrics across all methods
+11. ⏳ Compare SFT vs DPO: compliance, diversity, fluency
+12. ⏳ Statistical analysis and visualization
+13. ⏳ Write manuscript
 
 ## License
 
