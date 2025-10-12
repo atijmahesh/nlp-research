@@ -235,17 +235,24 @@ def main(args):
     
     # DPO Trainer
     print("\nInitializing DPO Trainer...")
-    dpo_trainer = DPOTrainer(
-        model=model,
-        ref_model=ref_model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        processing_class=tokenizer,  # Use processing_class instead of tokenizer
-        beta=0.1,  # DPO temperature parameter
-        max_prompt_length=128,
-        max_length=256,
-    )
+    # Try minimal API first - different trl versions have different signatures
+    try:
+        dpo_trainer = DPOTrainer(
+            model=model,
+            ref_model=ref_model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+        )
+    except TypeError as e:
+        print(f"Error with minimal DPOTrainer init: {e}")
+        print("Trying with tokenizer...")
+        dpo_trainer = DPOTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+        )
     
     # Train
     print("\n" + "="*70)
