@@ -65,8 +65,10 @@ def generate_completion(model, tokenizer, prompt: str, max_retries: int = 5) -> 
     device = model.device
     
     for attempt in range(max_retries):
+        print(f"    [Attempt {attempt+1}] Tokenizing...", flush=True)
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         
+        print(f"    [Attempt {attempt+1}] Generating...", flush=True)
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
@@ -77,12 +79,14 @@ def generate_completion(model, tokenizer, prompt: str, max_retries: int = 5) -> 
                 pad_token_id=tokenizer.eos_token_id,
             )
         
+        print(f"    [Attempt {attempt+1}] Decoding...", flush=True)
         generated_text = tokenizer.decode(
             outputs[0][inputs.input_ids.shape[1]:],
             skip_special_tokens=True
         ).strip()
         
         word_count = count_words(generated_text)
+        print(f"    [Attempt {attempt+1}] Got {word_count} words", flush=True)
         if MIN_WORDS <= word_count <= MAX_WORDS:
             return generated_text
     
