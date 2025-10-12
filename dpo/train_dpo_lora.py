@@ -14,11 +14,10 @@ import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    TrainingArguments,
 )
 from peft import LoraConfig, get_peft_model
 from datasets import Dataset
-from trl import DPOTrainer
+from trl import DPOTrainer, DPOConfig
 import random
 
 # ============================================================================
@@ -212,8 +211,8 @@ def main(args):
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     
-    # Training arguments
-    training_args = TrainingArguments(
+    # DPO Configuration (trl 0.23.1)
+    dpo_config = DPOConfig(
         output_dir=str(output_dir),
         num_train_epochs=3,
         per_device_train_batch_size=1,  # Reduced from 2 due to dual-model memory
@@ -231,28 +230,21 @@ def main(args):
         report_to="none",
         remove_unused_columns=False,
         gradient_checkpointing=True,  # Enable to save memory
+        beta=0.1,  # DPO temperature parameter
+        max_prompt_length=128,
+        max_length=256,
     )
     
-    # DPO Trainer
+    # DPO Trainer (trl 0.23.1 API)
     print("\nInitializing DPO Trainer...")
-    # Try minimal API first - different trl versions have different signatures
-    try:
-        dpo_trainer = DPOTrainer(
-            model=model,
-            ref_model=ref_model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-        )
-    except TypeError as e:
-        print(f"Error with minimal DPOTrainer init: {e}")
-        print("Trying with tokenizer...")
-        dpo_trainer = DPOTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-        )
+    dpo_trainer = DPOTrainer(
+        model=model,
+        ref_model=ref_model,
+        args=dpo_config,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        processing_class=tokenizer,
+    )
     
     # Train
     print("\n" + "="*70)
