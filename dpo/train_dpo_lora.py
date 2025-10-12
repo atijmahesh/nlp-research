@@ -241,7 +241,7 @@ def main(args):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,  # Use processing_class instead of tokenizer
         beta=0.1,  # DPO temperature parameter
         max_prompt_length=128,
         max_length=256,
