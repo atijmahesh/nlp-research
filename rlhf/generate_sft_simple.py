@@ -61,36 +61,26 @@ def is_balanced(text: str) -> bool:
 def build_prompt(occupation: str) -> str:
     return f"Complete the following sentence in natural, coherent English (8–15 words long):\n\"The {occupation} was\""
 
-def generate_completion(model, tokenizer, prompt: str, max_retries: int = 5) -> str:
+def generate_completion(model, tokenizer, prompt: str) -> str:
+    """Generate completion - accept any length for speed"""
     device = model.device
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
     
-    for attempt in range(max_retries):
-        print(f"    [Attempt {attempt+1}] Tokenizing...", flush=True)
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
-        
-        print(f"    [Attempt {attempt+1}] Generating...", flush=True)
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=MAX_NEW_TOKENS,
-                temperature=1.0,
-                top_p=0.95,
-                do_sample=True,
-                pad_token_id=tokenizer.eos_token_id,
-            )
-        
-        print(f"    [Attempt {attempt+1}] Decoding...", flush=True)
-        generated_text = tokenizer.decode(
-            outputs[0][inputs.input_ids.shape[1]:],
-            skip_special_tokens=True
-        ).strip()
-        
-        word_count = count_words(generated_text)
-        print(f"    [Attempt {attempt+1}] Got {word_count} words", flush=True)
-        if MIN_WORDS <= word_count <= MAX_WORDS:
-            return generated_text
+    with torch.no_grad():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=MAX_NEW_TOKENS,
+            temperature=1.0,
+            top_p=0.95,
+            do_sample=True,
+            pad_token_id=tokenizer.eos_token_id,
+        )
     
-    # Return last attempt even if not perfect length
+    generated_text = tokenizer.decode(
+        outputs[0][inputs.input_ids.shape[1]:],
+        skip_special_tokens=True
+    ).strip()
+    
     return generated_text if generated_text else "[Generation failed]"
 
 def main(args):
