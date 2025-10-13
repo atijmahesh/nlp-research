@@ -135,12 +135,14 @@ def apply_inlp(
         layer_idx: Which layer to modify (-1 = last layer)
         output_dir: Where to save projection matrices
     """
+    print(f"[DEBUG] apply_inlp function called", flush=True)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[DEBUG] Output directory created: {output_dir}", flush=True)
     
     print(f"\n{'='*70}")
     print(f"INLP: Extracting embeddings from layer {layer_idx}")
-    print(f"{'='*70}\n")
+    print(f"{'='*70}\n", flush=True)
     
     # Step 1: Extract embeddings for all gendered words
     male_embeddings = []
@@ -240,13 +242,16 @@ def main(args):
         trust_remote_code=True,
     )
     model.eval()
+    print("Model loaded and set to eval mode.", flush=True)
     
     tokenizer = AutoTokenizer.from_pretrained(
         "meta-llama/Meta-Llama-3.1-8B-Instruct",
         trust_remote_code=True,
     )
+    print("Tokenizer loaded.", flush=True)
     
     # Apply INLP
+    print("Starting INLP projection computation...", flush=True)
     projection_data = apply_inlp(
         model=model,
         tokenizer=tokenizer,
