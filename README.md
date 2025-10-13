@@ -24,19 +24,25 @@ nlp-research/
 │   ├── generate_dpo.py            # Generate 250 completions per occupation
 │   └── DPO_README.md              # Detailed DPO methodology
 │
+├── inlp/                 # Iterative Nullspace Projection
+│   ├── train_inlp.py              # Compute projection matrix (~30min)
+│   ├── generate_inlp.py           # Generate with projection applied
+│   └── INLP_README.md             # Detailed INLP methodology
+│
 ├── listModels.py         # Utility: List available OpenAI models
 └── README.md             # This file
 ```
 
 ## Research Overview
 
-This study evaluates **five control strategies** to mitigate gender bias in LLMs:
+This study evaluates **six control strategies** to mitigate gender bias in LLMs:
 
 1. **Prompt-Only** ✅ - Simple prompting with length constraints
 2. **Generate-and-Filter** ✅ - Post-hoc filtering for stereotypical terms
 3. **Ctrl-G Decoding** ✅ - DFA-based constrained generation (separate implementation)
 4. **SFT Fine-tuning** ✅ - Supervised learning with LoRA to encourage balanced outputs
-5. **DPO Fine-tuning** 🔄 - Preference learning with LoRA (chosen vs rejected outputs)
+5. **DPO Fine-tuning** ✅ - Preference learning with LoRA (chosen vs rejected outputs)
+6. **INLP** 🔄 - Linear projection to remove gender subspace (post-hoc debiasing)
 
 ### Key Metrics
 - **Constraint Compliance**: % samples with both agentic AND communal terms
@@ -119,6 +125,25 @@ CUDA_VISIBLE_DEVICES=0 python generate_dpo.py \
     --model_dir ./dpo_lora_paper_seed42
 ```
 
+**INLP (Remote GPU Server Required):**
+```bash
+# On remote server with A6000/A100
+cd inlp/
+
+# Compute projection matrix (fast: ~30 min)
+CUDA_VISIBLE_DEVICES=0 python train_inlp.py \
+    --seed 42 \
+    --n_iterations 300 \
+    --layer_idx -1 \
+    --output_dir ./inlp_projection_seed42
+
+# Generate completions
+CUDA_VISIBLE_DEVICES=0 python generate_inlp.py \
+    --seed 42 \
+    --projection_dir ./inlp_projection_seed42 \
+    --layer_idx -1
+```
+
 ## Model Roster
 
 ### Prompt-Only & Gen-Filter
@@ -142,6 +167,14 @@ CUDA_VISIBLE_DEVICES=0 python generate_dpo.py \
 - **Training Time**: ~3-4 hours per seed
 - **Seeds**: 42, 123, 456 (for reproducibility)
 
+### INLP
+- **Base Model**: `meta-llama/Meta-Llama-3.1-8B-Instruct` (unchanged)
+- **Method**: Iterative Nullspace Projection (300 iterations)
+- **Training Data**: 39 gendered word pairs (he/she, man/woman, etc.)
+- **Hardware**: RTX A6000 (48GB) or A100 40GB/80GB
+- **Training Time**: ~30 minutes per seed (10× faster than fine-tuning!)
+- **Seeds**: 42, 123, 456 (for reproducibility)
+
 ### Ctrl-G Decoding
 - Implemented separately with DFA constraints
 - GPT-2 Ctrl-G, LLaMA 4.0+HMM, LLaMA 3.1-8B+HMM
@@ -156,6 +189,8 @@ CUDA_VISIBLE_DEVICES=0 python generate_dpo.py \
 | SFT Generation | ✅ Yes | ~10-15GB | ~3 hours |
 | DPO Training | ✅ Yes | ~12-18GB | ~3-4 hours |
 | DPO Generation | ✅ Yes | ~10-15GB | ~3 hours |
+| INLP Training | ✅ Yes | ~10-15GB | **~30 min** ⚡ |
+| INLP Generation | ✅ Yes | ~10-15GB | ~3 hours |
 
 ## SFT Performance
 
@@ -184,6 +219,10 @@ This demonstrates that lightweight supervised fine-tuning successfully teaches t
 - `dpo/dpo_lora_paper_seed{42,123,456}/` (trained models)
 - `dpo/dpo_lora_completions_seed{42,123,456}.csv` (generated samples)
 
+### INLP
+- `inlp/inlp_projection_seed{42,123,456}/` (projection matrices)
+- `inlp/inlp_completions_seed{42,123,456}.csv` (generated samples)
+
 ## Key Findings
 
 **SFT vs Other Methods:**
@@ -207,15 +246,17 @@ This demonstrates that lightweight supervised fine-tuning successfully teaches t
 2. ✅ Run generate-and-filter
 3. ✅ Implement Ctrl-G decoding (separate)
 4. ✅ Train SFT models (seeds 42, 123, 456)
-5. 🔄 Generate SFT completions for seeds 123, 456 (in progress)
+5. ✅ Generate SFT completions for all 3 seeds
 6. ✅ Implement DPO training and generation scripts
-7. ⏳ Train DPO models (seeds 42, 123, 456)
-8. ⏳ Generate DPO completions for all 3 seeds
-9. ⏳ Implement INLP (linear projection debiasing)
-10. ⏳ Run evaluation metrics across all methods
-11. ⏳ Compare SFT vs DPO: compliance, diversity, fluency
-12. ⏳ Statistical analysis and visualization
-13. ⏳ Write manuscript
+7. ✅ Train DPO models (seeds 42, 123, 456)
+8. 🔄 Generate DPO completions for all 3 seeds (in progress)
+9. ✅ Implement INLP (linear projection debiasing)
+10. ⏳ Train INLP projections (seeds 42, 123, 456)
+11. ⏳ Generate INLP completions for all 3 seeds
+12. ⏳ Run evaluation metrics across all methods
+13. ⏳ Compare SFT vs DPO vs INLP: compliance, diversity, fluency, efficiency
+14. ⏳ Statistical analysis and visualization
+15. ⏳ Write manuscript
 
 ## License
 

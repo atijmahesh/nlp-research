@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate completions from DPO fine-tuned LLaMA-3.1-8B-Instruct model.
-Produces 250 completions per occupation for evaluation.
+Generate completions from INLP-debiased LLaMA-3.1-8B-Instruct model.
+Applies projection during generation to remove gender bias.
 """
 
 import argparse
 import csv
 from pathlib import Path
 import torch
+import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import PeftModel
+import pickle
 
 # ============================================================================
 # CONFIGURATION
@@ -65,63 +66,129 @@ def is_balanced(text: str) -> bool:
     return count_terms(text, AGENTIC_TERMS) >= 1 and count_terms(text, COMMUNAL_TERMS) >= 1
 
 # ============================================================================
+# INLP PROJECTION HOOK
+# ============================================================================
+
+class INLPProjectionHook:
+    """Hook to apply INLP projection to hidden states during generation."""
+    
+    def __init__(self, projection_matrix: np.ndarray, layer_idx: int):
+        self.projection_matrix = torch.from_numpy(projection_matrix).float()
+        self.layer_idx = layer_idx
+        self.handles = []
+    
+    def apply_projection(self, module, input, output):
+        """Hook function to apply projection to layer output."""
+        if isinstance(output, tuple):
+            hidden_states = output[0]
+        else:
+            hidden_states = output
+        
+        # Apply projection: (batch, seq, hidden) @ (hidden, hidden)
+        original_dtype = hidden_states.dtype
+        device = hidden_states.device
+        
+        proj_matrix = self.projection_matrix.to(device).to(original_dtype)
+        projected = torch.matmul(hidden_states, proj_matrix.T)
+        
+        if isinstance(output, tuple):
+            return (projected,) + output[1:]
+        return projected
+    
+    def register(self, model):
+        """Register hook on the specified layer."""
+        # For LLaMA, layers are in model.model.layers
+        target_layer = model.model.layers[self.layer_idx]
+        handle = target_layer.register_forward_hook(self.apply_projection)
+        self.handles.append(handle)
+    
+    def remove(self):
+        """Remove all registered hooks."""
+        for handle in self.handles:
+            handle.remove()
+        self.handles = []
+
+# ============================================================================
 # GENERATION
 # ============================================================================
 
-def generate_completion(model, tokenizer, prompt: str) -> str:
-    """Generate a single completion."""
+def generate_completion(model, tokenizer, prompt: str, projection_hook=None) -> str:
+    """Generate a single completion with optional INLP projection."""
     device = model.device
     
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
     
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=MAX_NEW_TOKENS,
-            temperature=1.0,
-            top_p=0.95,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id,
-        )
+    # Register hook if provided
+    if projection_hook:
+        projection_hook.register(model)
     
-    generated_text = tokenizer.decode(
-        outputs[0][inputs.input_ids.shape[1]:],
-        skip_special_tokens=True
-    ).strip()
+    try:
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=MAX_NEW_TOKENS,
+                temperature=1.0,
+                top_p=0.95,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+            )
+        
+        generated_text = tokenizer.decode(
+            outputs[0][inputs.input_ids.shape[1]:],
+            skip_special_tokens=True
+        ).strip()
+    finally:
+        # Always remove hook
+        if projection_hook:
+            projection_hook.remove()
     
     return generated_text if generated_text else "[Generation failed]"
 
 def main(args):
-    model_path = args.model_dir
-    output_csv = f"dpo_lora_completions_seed{args.seed}.csv"
+    projection_dir = Path(args.projection_dir)
+    output_csv = f"inlp_completions_seed{args.seed}.csv"
     
-    if not Path(model_path).exists():
-        print(f"Error: Model not found at {model_path}")
+    # Load projection data
+    projection_file = projection_dir / f"inlp_projection_layer{args.layer_idx}.pkl"
+    if not projection_file.exists():
+        print(f"Error: Projection file not found at {projection_file}")
         return
     
     print(f"\n{'='*70}")
-    print(f"Loading model from {model_path}...")
+    print(f"Loading INLP projection from {projection_dir}...")
     print(f"{'='*70}\n")
+    
+    with open(projection_file, "rb") as f:
+        projection_data = pickle.load(f)
+    
+    projection_matrix = projection_data["projection_matrix"]
+    layer_idx = projection_data["layer_idx"]
+    n_iterations = projection_data["n_iterations"]
+    
+    print(f"Projection matrix: {projection_matrix.shape}")
+    print(f"Layer: {layer_idx}")
+    print(f"INLP iterations: {n_iterations}\n")
     
     # Load base model
     print("Loading base model...")
-    base_model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         "meta-llama/Meta-Llama-3.1-8B-Instruct",
         torch_dtype=torch.bfloat16,
         device_map="auto",
         trust_remote_code=True,
     )
+    model.eval()
     
-    # Load LoRA adapters and merge
-    print("Loading and merging LoRA adapters...")
-    model = PeftModel.from_pretrained(base_model, model_path)
-    print("Merging weights...")
-    model = model.merge_and_unload()
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        trust_remote_code=True,
+    )
     tokenizer.pad_token = tokenizer.eos_token
     
     print("Model ready!\n")
+    
+    # Create projection hook
+    projection_hook = INLPProjectionHook(projection_matrix, layer_idx)
     
     print(f"{'='*70}")
     print(f"Generating {RUNS_PER_OCC} completions per occupation")
@@ -141,14 +208,14 @@ def main(args):
             run_counter += 1
             
             try:
-                completion = generate_completion(model, tokenizer, prompt)
+                completion = generate_completion(model, tokenizer, prompt, projection_hook)
                 word_count = count_words(completion)
                 n_agentic = count_terms(completion, AGENTIC_TERMS)
                 n_communal = count_terms(completion, COMMUNAL_TERMS)
                 balanced = is_balanced(completion)
                 
                 records.append({
-                    "Model": f"DPO-LoRA-Seed{args.seed}",
+                    "Model": f"INLP-Seed{args.seed}",
                     "Occupation": occ,
                     "Split": split,
                     "RunID": run_id,
@@ -157,7 +224,7 @@ def main(args):
                     "AgenticTerms": n_agentic,
                     "CommunalTerms": n_communal,
                     "Balanced": balanced,
-                    "Label": "DPO-LoRA"
+                    "Label": "INLP"
                 })
                 
                 if run_id % 50 == 0:
@@ -171,7 +238,7 @@ def main(args):
     # Save to CSV
     print(f"\nSaving to {output_csv}...")
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=records[0].keys(), quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(f, fieldnames=records[0].keys())
         writer.writeheader()
         writer.writerows(records)
     
@@ -192,8 +259,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, required=True, help="Random seed used in training")
-    parser.add_argument("--model_dir", type=str, required=True, help="Path to trained DPO model")
+    parser.add_argument("--seed", type=int, required=True, help="Random seed")
+    parser.add_argument("--projection_dir", type=str, required=True, help="Path to INLP projection")
+    parser.add_argument("--layer_idx", type=int, default=-1, help="Layer index")
     args = parser.parse_args()
     
     main(args)
