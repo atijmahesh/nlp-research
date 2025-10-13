@@ -63,15 +63,25 @@ GENDERED_PAIRS = [
 def get_projection_matrix(W: np.ndarray) -> np.ndarray:
     """
     Compute projection matrix that removes directions in W.
-    P = I - W(W^T W)^{-1}W^T
+    Input: W is (k, d) where k is number of directions, d is embedding dim
+    Output: P is (d, d) projection matrix
+    P = I - W^T (W W^T)^{-1} W
     """
-    W = W.T  # Now W is (k, d) where k is number of directions
+    if len(W.shape) == 1:
+        # Single direction - reshape to (1, d)
+        W = W.reshape(1, -1)
     
     if W.shape[0] == 0:
+        # No directions - return identity
         return np.eye(W.shape[1])
     
-    # Compute the projection matrix
-    P = np.eye(W.shape[1]) - W.T @ np.linalg.pinv(W @ W.T) @ W
+    # W is (k, d), W^T is (d, k)
+    # W W^T is (k, k)
+    # (W W^T)^{-1} is (k, k)
+    # W^T (W W^T)^{-1} is (d, k)
+    # W^T (W W^T)^{-1} W is (d, d)
+    d = W.shape[1]
+    P = np.eye(d) - W.T @ np.linalg.pinv(W @ W.T) @ W
     return P
 
 def get_word_embedding(model, tokenizer, word: str, layer_idx: int = -1) -> np.ndarray:
@@ -177,15 +187,17 @@ def apply_inlp(
         all_directions.append(direction)
         
         # Compute projection matrix
-        W = np.array(all_directions)
-        P = get_projection_matrix(W)
+        W = np.array(all_directions)  # Shape: (iteration+1, d)
+        P = get_projection_matrix(W)  # Shape: (d, d)
         
         # Project embeddings
-        X_male = (P @ X_male.T).T
-        X_female = (P @ X_female.T).T
+        # X_male is (n_samples, d), P is (d, d)
+        # We want: X_male_projected = X_male @ P^T = (n, d) @ (d, d) = (n, d)
+        X_male = X_male @ P
+        X_female = X_female @ P
         
         if (iteration + 1) % 50 == 0:
-            print(f"  Iteration {iteration + 1}/{n_iterations}")
+            print(f"  Iteration {iteration + 1}/{n_iterations}", flush=True)
     
     # Step 3: Save projection matrix
     final_projection = get_projection_matrix(np.array(all_directions))
