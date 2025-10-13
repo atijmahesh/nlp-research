@@ -82,7 +82,8 @@ def get_word_embedding(model, tokenizer, word: str, layer_idx: int = -1) -> np.n
         outputs = model(**inputs, output_hidden_states=True)
         hidden_states = outputs.hidden_states[layer_idx]  # (batch, seq, hidden)
         # Take mean over sequence (usually just 1-2 tokens)
-        embedding = hidden_states.mean(dim=1).squeeze().cpu().numpy()
+        # Convert to float32 for numpy compatibility
+        embedding = hidden_states.mean(dim=1).squeeze().float().cpu().numpy()
     
     return embedding
 

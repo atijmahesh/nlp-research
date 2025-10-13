@@ -171,7 +171,12 @@ def main(args):
     # Save to CSV
     print(f"\nSaving to {output_csv}...")
     with open(output_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=records[0].keys(), quoting=csv.QUOTE_ALL)
+        writer = csv.DictWriter(
+            f, 
+            fieldnames=records[0].keys(), 
+            quoting=csv.QUOTE_MINIMAL,
+            doublequote=True
+        )
         writer.writeheader()
         writer.writerows(records)
     
