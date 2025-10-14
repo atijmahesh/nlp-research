@@ -81,7 +81,14 @@ def get_projection_matrix(W: np.ndarray) -> np.ndarray:
     # W^T (W W^T)^{-1} is (d, k)
     # W^T (W W^T)^{-1} W is (d, d)
     d = W.shape[1]
-    P = np.eye(d) - W.T @ np.linalg.pinv(W @ W.T) @ W
+    
+    # Add regularization for numerical stability
+    try:
+        P = np.eye(d) - W.T @ np.linalg.pinv(W @ W.T, rcond=1e-5) @ W
+    except np.linalg.LinAlgError:
+        print("  Warning: SVD did not converge, using identity projection", flush=True)
+        P = np.eye(d)
+    
     return P
 
 def get_word_embedding(model, tokenizer, word: str, layer_idx: int = -1) -> np.ndarray:
@@ -116,12 +123,19 @@ def train_gender_classifier(
     
     classifiers = []
     for i in range(n_classifiers):
-        clf = LogisticRegression(max_iter=1000, random_state=42 + i)
+        clf = LogisticRegression(max_iter=1000, random_state=42 + i, C=0.01)  # Add regularization
         clf.fit(X, y)
         
         # Extract the decision boundary direction (weight vector)
         direction = clf.coef_[0]
-        direction = direction / np.linalg.norm(direction)  # Normalize
+        norm = np.linalg.norm(direction)
+        
+        # Check for numerical stability
+        if norm < 1e-8:
+            print(f"  Warning: Classifier {i} has near-zero norm, skipping", flush=True)
+            continue
+        
+        direction = direction / norm  # Normalize
         classifiers.append(direction)
     
     return classifiers
@@ -183,6 +197,12 @@ def apply_inlp(
     for iteration in range(n_iterations):
         # Train classifier on current representations
         directions = train_gender_classifier(X_male, X_female, n_classifiers=1)
+        
+        # Check if we got any valid directions
+        if len(directions) == 0:
+            print(f"  Early stopping at iteration {iteration}: no valid directions found", flush=True)
+            break
+        
         direction = directions[0]
         all_directions.append(direction)
         
