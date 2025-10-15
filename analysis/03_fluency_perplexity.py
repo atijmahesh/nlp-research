@@ -63,7 +63,7 @@ def analyze_fluency(results_dir='../results', batch_size=32):
         
         # Process with progress bar
         for row in tqdm(rows, desc=f"{method_name}"):
-            text = row.get('completion', row.get('Output', row.get('Text', '')))
+            text = row.get('completion', row.get('Output', row.get('Text', row.get('sample', ''))))
             
             if not text.strip():
                 continue

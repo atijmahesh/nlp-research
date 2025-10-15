@@ -60,7 +60,7 @@ def analyze_diversity(results_dir='../results'):
             reader = csv.DictReader(f)
             
             for row in reader:
-                text = row.get('completion', row.get('Output', row.get('Text', '')))
+                text = row.get('completion', row.get('Output', row.get('Text', row.get('sample', ''))))
                 total_samples += 1
                 
                 # Extract synonyms

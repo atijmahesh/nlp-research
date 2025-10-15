@@ -41,7 +41,7 @@ def analyze_compliance(results_dir='../results'):
             
             for row in reader:
                 # Get completion text (handle different column names)
-                text = row.get('completion', row.get('Output', row.get('Text', '')))
+                text = row.get('completion', row.get('Output', row.get('Text', row.get('sample', ''))))
                 occupation = row.get('occupation', row.get('Occupation', ''))
                 
                 total += 1
