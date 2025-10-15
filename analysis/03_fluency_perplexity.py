@@ -184,10 +184,8 @@ if __name__ == '__main__':
     print("⚠️  This will take a while (needs to load GPT-2 and process all samples)")
     
     if not torch.cuda.is_available():
-        print("\n⚠️  WARNING: CUDA not available. This will be slow on CPU.")
-        response = input("Continue anyway? (y/n): ")
-        if response.lower() != 'y':
-            sys.exit(0)
+        print("\n⚠️  WARNING: CUDA not available. This will be VERY slow on CPU.")
+        print("Proceeding anyway (non-interactive mode)...")
     
     fluency_results = analyze_fluency()
     aggregated = aggregate_by_method(fluency_results)
