@@ -63,13 +63,20 @@ def analyze_compliance(results_dir='../results'):
                     detailed_results[method_name][occupation].append('neither')
         
         if total > 0:
+            has_at_least_one = has_both + has_agentic + has_communal
+            
             compliance_results[method_name] = {
                 'total': total,
                 'has_both': has_both,
                 'has_agentic_only': has_agentic,
                 'has_communal_only': has_communal,
                 'has_neither': has_neither,
+                'has_at_least_one': has_at_least_one,
                 'compliance_rate': (has_both / total) * 100,
+                'agentic_only_rate': (has_agentic / total) * 100,
+                'communal_only_rate': (has_communal / total) * 100,
+                'neither_rate': (has_neither / total) * 100,
+                'at_least_one_rate': (has_at_least_one / total) * 100,
                 'agentic_rate': ((has_agentic + has_both) / total) * 100,
                 'communal_rate': ((has_communal + has_both) / total) * 100,
             }
@@ -90,14 +97,25 @@ def aggregate_by_method(compliance_results):
         # Calculate means
         total = sum(r['total'] for r in relevant_results)
         has_both = sum(r['has_both'] for r in relevant_results)
+        has_at_least_one = sum(r['has_at_least_one'] for r in relevant_results)
+        
         compliance_rates = [r['compliance_rate'] for r in relevant_results]
+        at_least_one_rates = [r['at_least_one_rate'] for r in relevant_results]
+        agentic_only_rates = [r['agentic_only_rate'] for r in relevant_results]
+        communal_only_rates = [r['communal_only_rate'] for r in relevant_results]
+        neither_rates = [r['neither_rate'] for r in relevant_results]
         
         aggregated[method_category] = {
             'total_samples': total,
             'total_balanced': has_both,
+            'total_at_least_one': has_at_least_one,
             'mean_compliance': sum(compliance_rates) / len(compliance_rates),
             'std_compliance': 0 if len(compliance_rates) == 1 else 
                              (sum((x - sum(compliance_rates)/len(compliance_rates))**2 for x in compliance_rates) / len(compliance_rates))**0.5,
+            'mean_at_least_one': sum(at_least_one_rates) / len(at_least_one_rates),
+            'mean_agentic_only': sum(agentic_only_rates) / len(agentic_only_rates),
+            'mean_communal_only': sum(communal_only_rates) / len(communal_only_rates),
+            'mean_neither': sum(neither_rates) / len(neither_rates),
             'min_compliance': min(compliance_rates),
             'max_compliance': max(compliance_rates),
             'n_runs': len(relevant_results),
@@ -117,18 +135,21 @@ def save_results(compliance_results, aggregated, output_dir='../analysis_results
     # Save aggregated results as CSV
     with open(f'{output_dir}/tables/compliance_summary.csv', 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['Method', 'Total Samples', 'Balanced Samples', 
-                        'Mean Compliance (%)', 'Std Dev (%)', 'Min (%)', 'Max (%)', 'N Runs'])
+        writer.writerow(['Method', 'Total Samples', 'Both (AND)', '≥1 (OR)', 'Agentic Only', 'Communal Only', 'Neither',
+                        'Both %', 'Std %', '≥1 %', 'N Runs'])
         
         for method, stats in sorted(aggregated.items()):
             writer.writerow([
                 method,
                 stats['total_samples'],
                 stats['total_balanced'],
+                stats['total_at_least_one'],
+                f"{stats['mean_agentic_only']:.2f}%",
+                f"{stats['mean_communal_only']:.2f}%",
+                f"{stats['mean_neither']:.2f}%",
                 f"{stats['mean_compliance']:.2f}",
                 f"{stats['std_compliance']:.2f}",
-                f"{stats['min_compliance']:.2f}",
-                f"{stats['max_compliance']:.2f}",
+                f"{stats['mean_at_least_one']:.2f}",
                 stats['n_runs'],
             ])
     
@@ -137,19 +158,26 @@ def save_results(compliance_results, aggregated, output_dir='../analysis_results
 def print_summary(aggregated):
     """Print a formatted summary table."""
     
-    print("\n" + "="*80)
-    print("CONSTRAINT COMPLIANCE ANALYSIS")
-    print("="*80)
-    print(f"{'Method':<15} {'Samples':>10} {'Balanced':>10} {'Mean (%)':>10} {'Std (%)':>10}")
-    print("-"*80)
+    print("\n" + "="*100)
+    print("CONSTRAINT COMPLIANCE ANALYSIS (Agentic AND/OR Communal Terms)")
+    print("="*100)
+    print(f"{'Method':<15} {'Samples':>8} {'Both':>8} {'≥1':>8} {'A-only':>8} {'C-only':>8} {'Neither':>8}")
+    print(f"{'':15} {'':8} {'(AND %)':>8} {'(OR %)':>8} {'(%)':>8} {'(%)':>8} {'(%)':>8}")
+    print("-"*100)
     
     for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']:
         if method in aggregated:
             stats = aggregated[method]
-            print(f"{method:<15} {stats['total_samples']:>10,} {stats['total_balanced']:>10,} "
-                  f"{stats['mean_compliance']:>10.2f} {stats['std_compliance']:>10.2f}")
+            print(f"{method:<15} {stats['total_samples']:>8,} "
+                  f"{stats['mean_compliance']:>8.2f} "
+                  f"{stats['mean_at_least_one']:>8.2f} "
+                  f"{stats['mean_agentic_only']:>8.2f} "
+                  f"{stats['mean_communal_only']:>8.2f} "
+                  f"{stats['mean_neither']:>8.2f}")
     
-    print("="*80)
+    print("="*100)
+    print("Note: Both = samples with agentic AND communal, ≥1 = at least one trait (OR)")
+    print("      A-only = agentic only, C-only = communal only")
 
 if __name__ == '__main__':
     print("Starting constraint compliance analysis...")
