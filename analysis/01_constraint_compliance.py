@@ -165,7 +165,7 @@ def print_summary(aggregated):
     print(f"{'':15} {'':8} {'(AND %)':>8} {'(OR %)':>8} {'(%)':>8} {'(%)':>8} {'(%)':>8}")
     print("-"*100)
     
-    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']:
+    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']:
         if method in aggregated:
             stats = aggregated[method]
             print(f"{method:<15} {stats['total_samples']:>8,} "

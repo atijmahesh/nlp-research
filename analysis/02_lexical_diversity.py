@@ -174,7 +174,7 @@ def print_summary(aggregated):
     print(f"{'Method':<15} {'Agentic H':>12} {'Communal H':>12} {'Combined H':>12} {'Paths':>8}")
     print("-"*80)
     
-    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']:
+    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']:
         if method in aggregated:
             stats = aggregated[method]
             print(f"{method:<15} {stats['mean_agentic_entropy']:>12.3f} "

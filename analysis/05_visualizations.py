@@ -49,7 +49,8 @@ def aggregate_for_plotting(data):
     aggregated = {
         'Prompt-Only': {'compliance': [], 'diversity': [], 'fluency': []},
         'Gen-Filter': {'compliance': [], 'diversity': [], 'fluency': []},
-        'Ctrl-G': {'compliance': [], 'diversity': [], 'fluency': []},
+        'Ctrl-G (OR)': {'compliance': [], 'diversity': [], 'fluency': []},
+        'Ctrl-G (AND)': {'compliance': [], 'diversity': [], 'fluency': []},
         'SFT': {'compliance': [], 'diversity': [], 'fluency': []},
         'DPO': {'compliance': [], 'diversity': [], 'fluency': []},
         'INLP': {'compliance': [], 'diversity': [], 'fluency': []},
@@ -87,21 +88,21 @@ def aggregate_for_plotting(data):
 def plot_compliance_comparison(aggregated, output_dir):
     """Bar chart comparing constraint compliance across methods."""
     
-    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']
+    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']
     means = []
     stds = []
     
     for method in methods:
-        if aggregated[method]['compliance']:
+        if method in aggregated and aggregated[method]['compliance']:
             means.append(np.mean(aggregated[method]['compliance']))
             stds.append(np.std(aggregated[method]['compliance']))
         else:
             means.append(0)
             stds.append(0)
     
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(10, 5))
     
-    colors = ['#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e74c3c', '#1abc9c']
+    colors = ['#3498db', '#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c', '#1abc9c']
     bars = ax.bar(methods, means, yerr=stds, capsize=5, color=colors, alpha=0.8, edgecolor='black')
     
     # Add value labels on bars
@@ -127,21 +128,21 @@ def plot_compliance_comparison(aggregated, output_dir):
 def plot_diversity_comparison(aggregated, output_dir):
     """Bar chart comparing lexical diversity across methods."""
     
-    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']
+    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']
     means = []
     stds = []
     
     for method in methods:
-        if aggregated[method]['diversity']:
+        if method in aggregated and aggregated[method]['diversity']:
             means.append(np.mean(aggregated[method]['diversity']))
             stds.append(np.std(aggregated[method]['diversity']))
         else:
             means.append(0)
             stds.append(0)
     
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(10, 5))
     
-    colors = ['#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e74c3c', '#1abc9c']
+    colors = ['#3498db', '#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c', '#1abc9c']
     bars = ax.bar(methods, means, yerr=stds, capsize=5, color=colors, alpha=0.8, edgecolor='black')
     
     # Add value labels
@@ -165,21 +166,21 @@ def plot_diversity_comparison(aggregated, output_dir):
 def plot_fluency_comparison(aggregated, output_dir):
     """Bar chart comparing fluency (perplexity) across methods."""
     
-    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']
+    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']
     means = []
     stds = []
     
     for method in methods:
-        if aggregated[method]['fluency']:
+        if method in aggregated and aggregated[method]['fluency']:
             means.append(np.mean(aggregated[method]['fluency']))
             stds.append(np.std(aggregated[method]['fluency']))
         else:
             means.append(0)
             stds.append(0)
     
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(10, 5))
     
-    colors = ['#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e74c3c', '#1abc9c']
+    colors = ['#3498db', '#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c', '#1abc9c']
     bars = ax.bar(methods, means, yerr=stds, capsize=5, color=colors, alpha=0.8, edgecolor='black')
     
     # Add value labels
@@ -203,8 +204,8 @@ def plot_fluency_comparison(aggregated, output_dir):
 def plot_tradeoff_scatter(aggregated, output_dir):
     """Scatter plot: Compliance vs Fluency trade-off."""
     
-    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G', 'SFT', 'DPO', 'INLP']
-    colors = ['#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#e74c3c', '#1abc9c']
+    methods = ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']
+    colors = ['#3498db', '#2ecc71', '#f39c12', '#e67e22', '#9b59b6', '#e74c3c', '#1abc9c']
     
     fig, ax = plt.subplots(figsize=(8, 6))
     
