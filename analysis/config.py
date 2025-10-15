@@ -39,18 +39,31 @@ VALIDATION_OCCUPATIONS = [
 
 # File paths (relative to results/)
 DATA_FILES = {
-    'prompt_only_gpt4o': 'prompt-only/prompt_only_gpt4o_combined.csv',
-    'prompt_only_llama': 'prompt-only/prompt_only_llama_combined.csv',
-    'genfilter_gpt4o': 'gen-filter/genfilter_gpt4o_filtered.csv',
-    'genfilter_llama': 'gen-filter/genfilter_llama_filtered.csv',
+    # Prompt-only (individual models)
+    'prompt_only_gpt4o': 'prompt-only/prompt_only_chatgpt_4o_latest.csv',
+    'prompt_only_llama4_scout': 'prompt-only/prompt_only_llama4_scout.csv',
+    'prompt_only_llama3_70b': 'prompt-only/prompt_only_llama3_70b.csv',
+    
+    # Gen-filter (individual models)
+    'genfilter_gpt4o': 'gen-filter/genfilter_chatgpt_4o_latest.csv',
+    'genfilter_llama4_scout': 'gen-filter/genfilter_llama4_scout.csv',
+    'genfilter_llama3_70b': 'gen-filter/genfilter_llama3_70b.csv',
+    
+    # Ctrl-G
     'ctrlg_or': 'ctrl-g/ctrlg_prefix_completions.csv',
     'ctrlg_and': 'ctrl-g/ctrlg_and_completions.csv',
+    
+    # SFT (fine-tuned)
     'sft_seed42': 'sft/sft_lora_completions_seed42.csv',
     'sft_seed123': 'sft/sft_lora_completions_seed123.csv',
     'sft_seed456': 'sft/sft_lora_completions_seed456.csv',
+    
+    # DPO (fine-tuned)
     'dpo_seed42': 'dpo/dpo_lora_completions_seed42.csv',
     'dpo_seed123': 'dpo/dpo_lora_completions_seed123.csv',
     'dpo_seed456': 'dpo/dpo_lora_completions_seed456.csv',
+    
+    # INLP (fine-tuned)
     'inlp_seed42': 'inlp/inlp_completions_seed42.csv',
     'inlp_seed123': 'inlp/inlp_completions_seed123.csv',
     'inlp_seed456': 'inlp/inlp_completions_seed456.csv',
@@ -58,10 +71,20 @@ DATA_FILES = {
 
 # Method groupings
 METHOD_GROUPS = {
-    'Prompt-Only': ['prompt_only_gpt4o', 'prompt_only_llama'],
-    'Gen-Filter': ['genfilter_gpt4o', 'genfilter_llama'],
+    # Baseline methods (separate by model)
+    'GPT-4o (Prompt)': ['prompt_only_gpt4o'],
+    'LLaMA-4-Scout (Prompt)': ['prompt_only_llama4_scout'],
+    'LLaMA-3.3-70B (Prompt)': ['prompt_only_llama3_70b'],
+    
+    'GPT-4o (Gen-Filter)': ['genfilter_gpt4o'],
+    'LLaMA-4-Scout (Gen-Filter)': ['genfilter_llama4_scout'],
+    'LLaMA-3.3-70B (Gen-Filter)': ['genfilter_llama3_70b'],
+    
+    # Ctrl-G (hard constraints)
     'Ctrl-G (OR)': ['ctrlg_or'],
     'Ctrl-G (AND)': ['ctrlg_and'],
+    
+    # Fine-tuned methods (average across seeds)
     'SFT': ['sft_seed42', 'sft_seed123', 'sft_seed456'],
     'DPO': ['dpo_seed42', 'dpo_seed123', 'dpo_seed456'],
     'INLP': ['inlp_seed42', 'inlp_seed123', 'inlp_seed456'],

@@ -168,21 +168,29 @@ def save_results(diversity_results, aggregated, output_dir='../analysis_results'
 def print_summary(aggregated):
     """Print a formatted summary table."""
     
-    print("\n" + "="*80)
+    print("\n" + "="*100)
     print("LEXICAL DIVERSITY ANALYSIS")
-    print("="*80)
-    print(f"{'Method':<15} {'Agentic H':>12} {'Communal H':>12} {'Combined H':>12} {'Paths':>8}")
-    print("-"*80)
+    print("="*100)
+    print(f"{'Method':<30} {'Agentic H':>12} {'Communal H':>12} {'Combined H':>12} {'Paths':>8}")
+    print("-"*100)
     
-    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']:
+    # Display in logical order
+    method_order = [
+        'GPT-4o (Prompt)', 'LLaMA-4-Scout (Prompt)', 'LLaMA-3.3-70B (Prompt)',
+        'GPT-4o (Gen-Filter)', 'LLaMA-4-Scout (Gen-Filter)', 'LLaMA-3.3-70B (Gen-Filter)',
+        'Ctrl-G (OR)', 'Ctrl-G (AND)',
+        'SFT', 'DPO', 'INLP'
+    ]
+    
+    for method in method_order:
         if method in aggregated:
             stats = aggregated[method]
-            print(f"{method:<15} {stats['mean_agentic_entropy']:>12.3f} "
+            print(f"{method:<30} {stats['mean_agentic_entropy']:>12.3f} "
                   f"{stats['mean_communal_entropy']:>12.3f} "
                   f"{stats['mean_combined_entropy']:>12.3f} "
                   f"{stats['mean_path_diversity']:>8.1f}")
     
-    print("="*80)
+    print("="*100)
     print("Note: H = Shannon entropy (higher = more diverse vocabulary)")
 
 if __name__ == '__main__':

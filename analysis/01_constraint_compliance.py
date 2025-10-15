@@ -158,24 +158,32 @@ def save_results(compliance_results, aggregated, output_dir='../analysis_results
 def print_summary(aggregated):
     """Print a formatted summary table."""
     
-    print("\n" + "="*100)
+    print("\n" + "="*120)
     print("CONSTRAINT COMPLIANCE ANALYSIS (Agentic AND/OR Communal Terms)")
-    print("="*100)
-    print(f"{'Method':<15} {'Samples':>8} {'Both':>8} {'≥1':>8} {'A-only':>8} {'C-only':>8} {'Neither':>8}")
-    print(f"{'':15} {'':8} {'(AND %)':>8} {'(OR %)':>8} {'(%)':>8} {'(%)':>8} {'(%)':>8}")
-    print("-"*100)
+    print("="*120)
+    print(f"{'Method':<30} {'Samples':>8} {'Both':>8} {'≥1':>8} {'A-only':>8} {'C-only':>8} {'Neither':>8}")
+    print(f"{'':30} {'':8} {'(AND %)':>8} {'(OR %)':>8} {'(%)':>8} {'(%)':>8} {'(%)':>8}")
+    print("-"*120)
     
-    for method in ['Prompt-Only', 'Gen-Filter', 'Ctrl-G (OR)', 'Ctrl-G (AND)', 'SFT', 'DPO', 'INLP']:
+    # Display in logical order
+    method_order = [
+        'GPT-4o (Prompt)', 'LLaMA-4-Scout (Prompt)', 'LLaMA-3.3-70B (Prompt)',
+        'GPT-4o (Gen-Filter)', 'LLaMA-4-Scout (Gen-Filter)', 'LLaMA-3.3-70B (Gen-Filter)',
+        'Ctrl-G (OR)', 'Ctrl-G (AND)',
+        'SFT', 'DPO', 'INLP'
+    ]
+    
+    for method in method_order:
         if method in aggregated:
             stats = aggregated[method]
-            print(f"{method:<15} {stats['total_samples']:>8,} "
+            print(f"{method:<30} {stats['total_samples']:>8,} "
                   f"{stats['mean_compliance']:>8.2f} "
                   f"{stats['mean_at_least_one']:>8.2f} "
                   f"{stats['mean_agentic_only']:>8.2f} "
                   f"{stats['mean_communal_only']:>8.2f} "
                   f"{stats['mean_neither']:>8.2f}")
     
-    print("="*100)
+    print("="*120)
     print("Note: Both = samples with agentic AND communal, ≥1 = at least one trait (OR)")
     print("      A-only = agentic only, C-only = communal only")
 
