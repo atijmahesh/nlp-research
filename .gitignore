@@ -1,2 +1,65 @@
+# Environment variables
 .env
-analysis/__pycache__/
+*.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Model checkpoints and outputs (large files)
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+**/checkpoint-*/
+**/sft_lora_paper_seed*/
+**/dpo_lora_paper_seed*/
+**/inlp_projection_seed*/
+
+# Results and data files (if large)
+results/
+*.csv
+*.json
+*.pkl
+*.pickle
+
+# Logs and temporary files
+*.log
+nohup.out
+*.tmp
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation builds
+docs/_build/
+site/

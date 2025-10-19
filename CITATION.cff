@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this software or data, please cite it as below."
+type: software
+title: "Compositional Bias Control in Large Language Models: Why Preference Learning Fails and Supervision Succeeds"
+authors:
+  - family-names: "Mahesh"
+    given-names: "Atij"
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # Update with actual ORCID if available
+abstract: >
+  This repository contains code and data for evaluating six control strategies
+  for mitigating gender bias in large language models: prompt-only,
+  generate-and-filter, DFA-based Ctrl-G decoding, Supervised Fine-Tuning (SFT),
+  Direct Preference Optimization (DPO), and Iterative Nullspace Projection (INLP).
+  We evaluate compositional constraints requiring both agentic and communal traits,
+  measuring compliance, lexical diversity, and fluency. Our findings show that
+  supervised fine-tuning achieves 99.87% compliance while preference-based DPO
+  catastrophically fails at 4.53%, revealing fundamental limitations of preference
+  learning for compositional constraints.
+keywords:
+  - natural language processing
+  - gender bias
+  - fairness
+  - large language models
+  - controlled generation
+  - fine-tuning
+  - preference learning
+  - compositional constraints
+license: MIT
+repository-code: "https://github.com/atij-mahesh/nlp-research"  # Update with actual repo URL
+date-released: 2025-01-01  # Update with actual submission/publication date
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Mahesh"
+      given-names: "Atij"
+  title: "Compositional Bias Control in Large Language Models: Why Preference Learning Fails and Supervision Succeeds"
+  year: 2025  # Update with actual year
+  # Add venue information when available:
+  # conference:
+  #   name: "Conference Name"
+  # journal: "Journal Name"
+

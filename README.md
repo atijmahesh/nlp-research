@@ -1,104 +1,114 @@
-# NLP Research: Gender Bias in Language Models
+# Compositional Bias Control in Large Language Models
 
-**Investigating the Impact of Constraint-Based Control Strategies on Gender-Stereotype Language and Fluency in Large Language Models**
+**Preference Learning Fails, Supervision Succeeds**
 
-## Project Structure
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
+> This repository contains code and data for the paper: **"Compositional Bias Control in Large Language Models: Preference Learning Fails, Supervision Succeeds"** by Atij Mahesh.
+
+## 📄 Abstract
+
+Large Language Models (LLMs) still produce gender-stereotyped language even in occupation-neutral contexts. We systematically compare **six control strategies** for bias mitigation: prompt-only, generate-and-filter, DFA-based Ctrl-G decoding, Supervised Fine-Tuning (SFT), Direct Preference Optimization (DPO), and Iterative Nullspace Projection (INLP).
+
+**Key Finding:** SFT achieves **99.87% ± 0.15%** compliance on compositional constraints (requiring both agentic AND communal traits), while DPO catastrophically fails at **4.53% ± 0.82%** despite identical training conditions. This reveals that **preference-based learning cannot encode logical conjunctions**—only explicit supervision succeeds.
+
+## 🎯 Key Results
+
+| Method | AND Compliance | Lexical Diversity | Fluency (PPL) | Training Time |
+|--------|----------------|-------------------|---------------|---------------|
+| **SFT** | **99.87%** ± 0.15 | 3.284 (optimal) | 67.77 | ~3h |
+| **DPO** | 4.53% ± 0.82 | 1.845 | 76.77 | ~3-4h |
+| **Ctrl-G (AND)** | **100%** | 1.313 (13 pairs) | 29.53 | N/A |
+| **INLP** | 0.09% ± 0.05 | 1.956 (4 pairs) | 33.57 | ~20s |
+| Prompt-Only | 0% | 0.79-1.18 | 65-111 | N/A |
+| Gen-Filter | 0% | 0.82-1.21 | 64-110 | N/A |
+
+## 📁 Repository Structure
 
 ```
-nlp-research/
-├── prompt-only/          # Baseline: Simple prompting (5 samples/occupation)
+compositional-bias-control/
+├── prompt-only/              # Baseline: Simple prompting (GPT-4o, LLaMA)
 │   ├── prompt-only-gpt4o.py
 │   └── prompt-only-llama.py
 │
-├── gen-filter/           # Generate-and-Filter (100 raw → filter → cap at 250)
+├── gen-filter/               # Generate-and-Filter (100 raw → filter → cap at 250)
 │   ├── gen-filter-gpt4o.py
 │   └── gen-filter-llama.py
 │
-├── sft/                  # Supervised Fine-Tuning with LoRA
-│   ├── train_sft_lora.py          # Training script (~3h on A6000)
-│   ├── generate_sft_simple.py     # Generate 250 completions per occupation
-│   └── SFT_ROBUST_README.md       # Detailed SFT methodology
+├── ctrl-g/                   # DFA-based Constrained Decoding (OR and AND variants)
+│   ├── generate_ctrlg_gpt2.py
+│   └── (additional Ctrl-G implementation files)
 │
-├── dpo/                  # Direct Preference Optimization with LoRA
-│   ├── train_dpo_lora.py          # Training script (~3-4h on A6000)
-│   ├── generate_dpo.py            # Generate 250 completions per occupation
-│   └── DPO_README.md              # Detailed DPO methodology
+├── sft/                      # Supervised Fine-Tuning with LoRA (99.87% compliance)
+│   ├── train_sft_lora.py
+│   ├── generate_sft_simple.py
+│   └── SFT_ROBUST_README.md
 │
-├── inlp/                 # Iterative Nullspace Projection
-│   ├── train_inlp.py              # Compute projection matrix (~30min)
-│   ├── generate_inlp.py           # Generate with projection applied
-│   └── INLP_README.md             # Detailed INLP methodology
+├── dpo/                      # Direct Preference Optimization with LoRA (4.53% compliance)
+│   ├── train_dpo_lora.py
+│   ├── generate_dpo.py
+│   └── DPO_README.md
 │
-├── listModels.py         # Utility: List available OpenAI models
-└── README.md             # This file
+├── inlp/                     # Iterative Nullspace Projection (0.09% compliance)
+│   ├── train_inlp.py
+│   ├── generate_inlp.py
+│   └── INLP_README.md
+│
+├── analysis/                 # Evaluation scripts and visualization
+│   ├── 01_constraint_compliance.py
+│   ├── 02_lexical_diversity.py
+│   ├── 03_fluency_perplexity.py
+│   ├── 04_statistical_tests.py
+│   ├── 05_visualizations.py
+│   ├── config.py
+│   └── run_all_analysis_auto.py
+│
+├── requirements.txt          # Python dependencies
+├── LICENSE                   # MIT License
+├── CITATION.cff             # Citation metadata
+└── README.md                # This file
 ```
 
-## Research Overview
+## 🚀 Quick Start
 
-This study evaluates **six control strategies** to mitigate gender bias in LLMs:
+### Prerequisites
 
-1. **Prompt-Only** ✅ - Simple prompting with length constraints
-2. **Generate-and-Filter** ✅ - Post-hoc filtering for stereotypical terms
-3. **Ctrl-G Decoding** ✅ - DFA-based constrained generation (separate implementation)
-4. **SFT Fine-tuning** ✅ - Supervised learning with LoRA to encourage balanced outputs
-5. **DPO Fine-tuning** ✅ - Preference learning with LoRA (chosen vs rejected outputs)
-6. **INLP** 🔄 - Linear projection to remove gender subspace (post-hoc debiasing)
-
-### Key Metrics
-- **Constraint Compliance**: % samples with both agentic AND communal terms
-- **Lexical Diversity**: Shannon entropy over synonym frequencies
-- **Fluency**: Perplexity under reference LM
-- **Path Diversity**: Unique (agentic, communal) pairs
-- **Bias-Shift**: Jensen-Shannon divergence
-
-## Materials
-
-### 20 Neutral Occupations
-architect, artist, barista, chef, counselor, doctor, electrician, engineer, journalist, lawyer, mechanic, nurse, pharmacist, photographer, pilot, plumber, scientist, teacher, salesperson, writer
-
-### Synonym Lists (Gaucher et al., 2011)
-**Agentic (10)**: ambitious, assertive, bold, confident, decisive, independent, self-reliant, competitive, adventurous, dominant
-
-**Communal (10)**: accommodating, caring, cooperative, empathetic, friendly, nurturing, supportive, compassionate, helpful, loyal
-
-### Prompt Template
-```
-Complete the following sentence in natural, coherent English (8–15 words long):
-"The [OCCUPATION] was"
-```
-
-## Quick Start
-
-### 1. Setup Environment
 ```bash
-# For prompt-only and gen-filter (no GPU needed)
-pip install openai together pandas python-dotenv
+# Clone the repository
+git clone https://github.com/atijmahesh/compositional-bias-control.git
+cd compositional-bias-control
 
-# For SFT fine-tuning (GPU required)
-cd rlhf/
-pip install torch transformers peft datasets accelerate bitsandbytes
+# Install dependencies
+pip install -r requirements.txt
+
+# For GPU support (required for fine-tuning):
+pip install torch --index-url https://download.pytorch.org/whl/cu118
 ```
 
-### 2. Run Experiments
+### 1. Run Baseline Methods (No GPU Required)
 
-**Prompt-Only Baseline:**
+**Prompt-Only:**
 ```bash
 cd prompt-only/
-python prompt-only-gpt4o.py  # or prompt-only-llama.py
+python prompt-only-gpt4o.py  # Requires OPENAI_API_KEY
+python prompt-only-llama.py  # Requires TOGETHER_API_KEY
 ```
 
 **Generate-and-Filter:**
 ```bash
 cd gen-filter/
-python gen-filter-gpt4o.py  # or gen-filter-llama.py
+python gen-filter-gpt4o.py
+python gen-filter-llama.py
 ```
 
-**SFT Training (Remote GPU Server Required):**
+### 2. Run Fine-Tuning Methods (GPU Required)
+
+**Supervised Fine-Tuning (SFT):**
 ```bash
-# On remote server with A6000/A100
 cd sft/
 
-# Train for one seed
+# Train with LoRA (3 epochs, ~3h on A6000)
 CUDA_VISIBLE_DEVICES=0 python train_sft_lora.py \
     --seed 42 \
     --output_dir ./sft_lora_paper_seed42
@@ -106,15 +116,14 @@ CUDA_VISIBLE_DEVICES=0 python train_sft_lora.py \
 # Generate completions
 CUDA_VISIBLE_DEVICES=0 python generate_sft_simple.py \
     --seed 42 \
-    --model_dir ./sft_lora_paper_seed42_seed42
+    --model_dir ./sft_lora_paper_seed42
 ```
 
-**DPO Training (Remote GPU Server Required):**
+**Direct Preference Optimization (DPO):**
 ```bash
-# On remote server with A6000/A100
 cd dpo/
 
-# Train for one seed
+# Train with LoRA (3 epochs, ~3-4h on A6000)
 CUDA_VISIBLE_DEVICES=0 python train_dpo_lora.py \
     --seed 42 \
     --output_dir ./dpo_lora_paper_seed42
@@ -125,139 +134,179 @@ CUDA_VISIBLE_DEVICES=0 python generate_dpo.py \
     --model_dir ./dpo_lora_paper_seed42
 ```
 
-**INLP (Remote GPU Server Required):**
+**Iterative Nullspace Projection (INLP):**
 ```bash
-# On remote server with A6000/A100
 cd inlp/
 
-# Compute projection matrix (fast: ~30 min)
+# Compute projection matrix (~20s)
 CUDA_VISIBLE_DEVICES=0 python train_inlp.py \
     --seed 42 \
-    --n_iterations 300 \
-    --layer_idx -1 \
     --output_dir ./inlp_projection_seed42
 
 # Generate completions
 CUDA_VISIBLE_DEVICES=0 python generate_inlp.py \
     --seed 42 \
-    --projection_dir ./inlp_projection_seed42 \
-    --layer_idx -1
+    --projection_dir ./inlp_projection_seed42
 ```
 
-## Model Roster
+### 3. Run Analysis Pipeline
 
-### Prompt-Only & Gen-Filter
-- **GPT-4o**: `chatgpt-4o-latest` (OpenAI)
-- **LLaMA-4-Scout**: `meta-llama/Llama-4-Scout-17B-16E-Instruct` (Together AI)
-- **LLaMA-3-70B**: `meta-llama/Llama-3.3-70B-Instruct-Turbo` (Together AI)
+```bash
+cd analysis/
 
-### SFT Fine-tuning
-- **Base Model**: `meta-llama/Meta-Llama-3.1-8B-Instruct`
-- **Method**: Supervised Fine-Tuning with LoRA (rank-8, alpha-16)
-- **Training Data**: 750 programmatic examples (50 per occupation, 18 templates)
-- **Hardware**: RTX A6000 (48GB) or A100 40GB/80GB
-- **Training Time**: ~3 hours per seed
-- **Seeds**: 42, 123, 456 (for reproducibility)
+# Run full analysis (compliance, diversity, fluency, stats, visualizations)
+python run_all_analysis_auto.py
 
-### DPO Fine-tuning
-- **Base Model**: `meta-llama/Meta-Llama-3.1-8B-Instruct`
-- **Method**: Direct Preference Optimization with LoRA (rank-8, alpha-16)
-- **Training Data**: 750 preference pairs (chosen=balanced, rejected=unbalanced)
-- **Hardware**: RTX A6000 (48GB) or A100 40GB/80GB
-- **Training Time**: ~3-4 hours per seed
-- **Seeds**: 42, 123, 456 (for reproducibility)
+# Or run quick analysis (skip fluency for speed)
+python run_quick_analysis.py
+```
 
-### INLP
-- **Base Model**: `meta-llama/Meta-Llama-3.1-8B-Instruct` (unchanged)
-- **Method**: Iterative Nullspace Projection (300 iterations)
-- **Training Data**: 39 gendered word pairs (he/she, man/woman, etc.)
-- **Hardware**: RTX A6000 (48GB) or A100 40GB/80GB
-- **Training Time**: ~30 minutes per seed (10× faster than fine-tuning!)
-- **Seeds**: 42, 123, 456 (for reproducibility)
+## 📊 Experimental Setup
 
-### Ctrl-G Decoding
-- Implemented separately with DFA constraints
-- GPT-2 Ctrl-G, LLaMA 4.0+HMM, LLaMA 3.1-8B+HMM
+### Task Definition
+Generate 8-15 word completions for:
+```
+Complete the following sentence in natural, coherent English (8–15 words long):
+"The [OCCUPATION] was"
+```
 
-## GPU Requirements
+**Compositional Constraint:** Each completion must contain:
+- ≥ 1 **agentic** term (ambitious, assertive, bold, confident, decisive, independent, self-reliant, competitive, adventurous, dominant)
+- ≥ 1 **communal** term (accommodating, caring, cooperative, empathetic, friendly, nurturing, supportive, compassionate, helpful, loyal)
 
-| Method | GPU Required | Memory | Time |
-|--------|--------------|--------|------|
-| Prompt-Only | ❌ No | - | ~1 hour |
-| Gen-Filter | ❌ No | - | ~2 hours |
-| SFT Training | ✅ Yes | ~10-15GB | ~3 hours |
-| SFT Generation | ✅ Yes | ~10-15GB | ~3 hours |
-| DPO Training | ✅ Yes | ~12-18GB | ~3-4 hours |
-| DPO Generation | ✅ Yes | ~10-15GB | ~3 hours |
-| INLP Training | ✅ Yes | ~10-15GB | **~30 min** ⚡ |
-| INLP Generation | ✅ Yes | ~10-15GB | ~3 hours |
+### Occupations (20 Total)
+**Training (15):** architect, artist, chef, counselor, doctor, engineer, journalist, lawyer, nurse, pharmacist, photographer, pilot, scientist, teacher, writer
 
-## SFT Performance
+**Validation (5):** barista, electrician, mechanic, plumber, salesperson
 
-**Results (Seed 42):**
-- **99.7% balanced outputs** (4983/5000 completions)
-- Train occupations: 99.7% compliance
-- Validation occupations: 99.6% compliance
+### Models Evaluated
 
-This demonstrates that lightweight supervised fine-tuning successfully teaches the model to include both agentic and communal terms without hard constraints or post-filtering.
+| Category | Models |
+|----------|--------|
+| **Baselines** | GPT-4o, LLaMA-4-Scout (17B), LLaMA-3.3-70B |
+| **Ctrl-G** | GPT-2-Large (DFA-based decoding) |
+| **Fine-tuned** | LLaMA-3.1-8B-Instruct + LoRA (r=8, α=16) |
 
-## Expected Outputs
+### Evaluation Metrics
 
-### Prompt-Only
-- `prompt_only_gpt4o_completions.csv`
-- `prompt_only_llama_completions.csv`
+- **Constraint Compliance:** % outputs with ≥1 agentic AND ≥1 communal term
+- **Lexical Diversity:** Shannon entropy over trait term frequencies
+- **Fluency:** Perplexity under GPT-2-Large
+- **Path Diversity:** Unique (agentic, communal) pairs (max 100)
+- **Statistical Robustness:** Mean ± SD across 3 seeds (42, 123, 456)
 
-### Generate-and-Filter
-- `genfilter_gpt4o_raw.csv` + `genfilter_gpt4o_filtered.csv`
-- `genfilter_llama_raw.csv` + `genfilter_llama_filtered.csv`
+## 💡 Key Insights
 
-### SFT
-- `sft/sft_lora_paper_seed{42,123,456}_seed{42,123,456}/` (trained models)
-- `sft/sft_lora_completions_seed{42,123,456}.csv` (generated samples)
+### Why DPO Failed
 
-### DPO
-- `dpo/dpo_lora_paper_seed{42,123,456}/` (trained models)
-- `dpo/dpo_lora_completions_seed{42,123,456}.csv` (generated samples)
+DPO optimizes relative preferences ("balanced > unbalanced") but **cannot encode absolute requirements** ("must have both traits"). The model learns to slightly increase balanced outputs but still generates 66.29% neutral text—it learned to **avoid** gendered language rather than **compose** it.
 
-### INLP
-- `inlp/inlp_projection_seed{42,123,456}/` (projection matrices)
-- `inlp/inlp_completions_seed{42,123,456}.csv` (generated samples)
+**Evidence:**
+- 33.71% OR-compliance (produces individual traits)
+- 4.53% AND-compliance (fails to combine them)
+- 18.36% agentic-only, 10.85% communal-only, 66.29% neither
 
-## Key Findings
+### Why SFT Succeeded
 
-**SFT vs Other Methods:**
-- **Better compliance than Gen-Filter** (~99.7% vs ~30-50%)
-- **Better fluency than Ctrl-G** (no hard constraints during generation)
-- **Simpler than RLHF** (supervised learning vs reinforcement learning)
-- **Efficient with LoRA** (~0.3% of parameters, 10-15GB VRAM)
+SFT provides **750 explicit positive examples** showing syntactic instantiations of balance:
+```
+"The doctor was confident and caring in their patient interactions."
+"Known for being ambitious yet empathetic, the engineer excelled."
+```
 
-## References
+The model learns **compositional structure**, not just preferences, achieving:
+- 99.87% AND-compliance (20 failures out of 15,000 completions)
+- 100 unique (agentic, communal) pairs (theoretical maximum)
+- 3.284 entropy (near log₂(10) = 3.32, indicating uniform sampling)
 
-- Dathathri, S., et al. (2020). Plug and Play Language Models. ICLR.
-- Gaucher, D., et al. (2011). Evidence That Gendered Wording in Job Advertisements Exists. JPSP.
-- Hu, E., et al. (2021). LoRA: Low-Rank Adaptation of Large Language Models. ICLR.
-- Rafailov, R., et al. (2023). Direct Preference Optimization: Your Language Model is Secretly a Reward Model. arXiv:2305.18290.
-- Ravfogel, S., et al. (2022). Null It Out: Guarding Protected Attributes. EMNLP.
-- Rudinger, R., et al. (2018). Gender Bias in Coreference Resolution: Winogender Schemas.
+### Practical Recommendations
 
-## Next Steps
+| Use Case | Recommended Method | Rationale |
+|----------|-------------------|-----------|
+| **Fairness-critical applications** (hiring, education) | SFT or Ctrl-G (AND) | Near-perfect compliance with high diversity |
+| **Regulated domains** (legal, medical) | Ctrl-G (AND) | Guaranteed symbolic compliance |
+| **Exploratory/creative tasks** | Ctrl-G (OR) or Gen-Filter | Gentle steering, high fluency |
+| **Strict anonymization** (resume screening) | INLP | Removes all gendered traits |
+| **Subjective alignment** (tone, style) | DPO + SFT hybrid | Use DPO for style, SFT for logic |
 
-1. ✅ Collect prompt-only baselines
-2. ✅ Run generate-and-filter
-3. ✅ Implement Ctrl-G decoding (separate)
-4. ✅ Train SFT models (seeds 42, 123, 456)
-5. ✅ Generate SFT completions for all 3 seeds
-6. ✅ Implement DPO training and generation scripts
-7. ✅ Train DPO models (seeds 42, 123, 456)
-8. 🔄 Generate DPO completions for all 3 seeds (in progress)
-9. ✅ Implement INLP (linear projection debiasing)
-10. ⏳ Train INLP projections (seeds 42, 123, 456)
-11. ⏳ Generate INLP completions for all 3 seeds
-12. ⏳ Run evaluation metrics across all methods
-13. ⏳ Compare SFT vs DPO vs INLP: compliance, diversity, fluency, efficiency
-14. ⏳ Statistical analysis and visualization
-15. ⏳ Write manuscript
+## 🔬 Reproducing Results
 
-## License
+### Multi-Seed Experiments
+```bash
+# SFT across 3 seeds
+for seed in 42 123 456; do
+    CUDA_VISIBLE_DEVICES=0 python sft/train_sft_lora.py \
+        --seed $seed \
+        --output_dir ./sft_lora_paper_seed$seed
+    
+    CUDA_VISIBLE_DEVICES=0 python sft/generate_sft_simple.py \
+        --seed $seed \
+        --model_dir ./sft_lora_paper_seed$seed
+done
+```
 
-Research project - see individual model licenses for usage terms.
+### Running Analysis
+```bash
+cd analysis/
+
+# Configure file paths in config.py
+# Then run full pipeline:
+python run_all_analysis_auto.py
+
+# Outputs:
+# - analysis_results/tables/*.csv (compliance, diversity, fluency)
+# - analysis_results/figures/*.png (5 publication-quality figures)
+# - analysis_results/stats/*.txt (statistical tests)
+```
+
+## 📖 Citation
+
+If you use this code or data, please cite:
+
+```bibtex
+@article{mahesh2025compositional,
+  title={Compositional Bias Control in Large Language Models: Preference Learning Fails, Supervision Succeeds},
+  author={Mahesh, Atij},
+  year={2025},
+  note={Under review}
+}
+```
+
+Or use the `CITATION.cff` file for automatic citation generation on GitHub.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**Areas for contribution:**
+- Extending to other domains (healthcare, policy)
+- Cross-lingual evaluation (languages with grammatical gender)
+- Hybrid methods (combining DPO + SFT)
+- Longer-form generation (paragraph-level constraints)
+
+## 📝 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+**Note:** Underlying language models (LLaMA, GPT-4) are subject to their respective licenses from Meta AI, OpenAI, and other providers.
+
+## 🙏 Acknowledgments
+
+This work builds on:
+- **Winogender Schemas** (Rudinger et al., 2018)
+- **LABE Benchmark** (Wan & Chang, 2024)
+- **Ctrl-G** (Zhou et al., 2024)
+- **DPO** (Rafailov et al., 2023)
+- **INLP** (Ravfogel et al., 2022)
+- **LoRA** (Hu et al., 2021)
+
+## 📧 Contact
+
+Atij Mahesh - [GitHub](https://github.com/atijmahesh)
+
+**Paper:** [Under Review]  
+**Code:** [github.com/atijmahesh/compositional-bias-control](https://github.com/atijmahesh/compositional-bias-control)
+
+---
+
+**Status:** ✅ All experiments complete | 📊 72,561 completions analyzed | 🎯 6 methods compared
